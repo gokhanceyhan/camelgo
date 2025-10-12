@@ -1,13 +1,13 @@
 # syntax=docker/dockerfile:1
-FROM python:3.8-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
-COPY src/camelgo/cert.pem src/camelgo/key.pem ./src/camelgo/
+COPY local/ ./src/camelgo/application
 
-RUN pip install uv_build && pip install . && pip install flask dash dash-bootstrap-components
+RUN pip install uv_build && pip install .
 
 EXPOSE 8080
-ENTRYPOINT ["python", "src/camelgo/dash_app.py"]
+ENTRYPOINT ["python", "src/camelgo/application/dash_app.py"]

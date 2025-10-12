@@ -6,8 +6,13 @@ readme = "README.md"
 authors = [
     { name = "Gokhan Ceyhan", email = "gokhanceyhan01@gmail.com" }
 ]
-requires-python = ">=3.8"
-dependencies = []
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.0",
+    "flask",
+    "dash",
+    "dash-bootstrap-components"
+]
 
 [project.scripts]
 camelgo = "camelgo:main"
@@ -15,3 +20,8 @@ camelgo = "camelgo:main"
 [build-system]
 requires = ["uv_build>=0.8.22,<0.9.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]

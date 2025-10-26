@@ -7,9 +7,10 @@ from camelgo.domain.environment.camel import Camel
 from camelgo.domain.environment.game_config import GameConfig
 from camelgo.domain.environment.leg import Leg
 from camelgo.domain.environment.player import Player
-from camelgo.domain.environment.dice import DiceRoller
+from camelgo.domain.environment.dice import DiceRoller, Dice
 
 class Game(BaseModel):
+    model_config = {'arbitrary_types_allowed': True}
     """
     Stores the game state of a CamelUp game.
     """
@@ -74,42 +75,24 @@ class Game(BaseModel):
                 player = self.players[player_name]
                 player.points = max(0, player.points - GameConfig.INCORRECT_GAME_BET_PENALTY)
 
-    def first_camel(self) -> Camel:
-        camels_in_order = sorted(
-            self.current_leg.camel_states.values(),
-            key=lambda c: (c.track_pos, c.stack_pos),
-            reverse=True
-        )
-        return camels_in_order[0]
-
-    def last_camel(self) -> Camel:
-        camels_in_order = sorted(
-            self.current_leg.camel_states.values(),
-            key=lambda c: (c.track_pos, c.stack_pos),
-            reverse=False
-        )
-        return camels_in_order[0]
-
     @classmethod
     def _find_camel_start_positions(cls, 
                                     dice_roller: DiceRoller) -> List[Camel]:
         # roll the dices to determine starting positions of camels
         dice_roller.reset()
-        dices_rolled = set()
-        for i in range(DiceRoller.DICE_COLORS):
-            dice_rolled = dice_roller.roll_dice()
-            dices_rolled.add(dice_rolled)
+        for i in range(len(DiceRoller.DICE_COLORS)):
+            dice_roller.roll_dice()
         # find first grey dice color
-        first_grey_dice = next(d for d in dices_rolled if d.color == 'grey')
+        first_grey_dice = next(d for d in dice_roller.dices_rolled if d.color == 'white' or d.color == 'black')
         second_grey_dice = dice_roller.roll_grey_dice()
         if first_grey_dice.color == 'white':
-            second_grey_dice.color = 'black'
+            second_grey_dice = Dice(color='black', number=second_grey_dice.number)
         else:
-            second_grey_dice.color = 'white'
-        dices_rolled.add(second_grey_dice)
+            second_grey_dice = Dice(color='white', number=second_grey_dice.number)
+        dices_rolled = dice_roller.dices_rolled
+        dices_rolled.append(second_grey_dice)
         dice_roller.reset()
 
-        players = {p: Player(name=p) for p in players}
         camels = []
         stacks = {i: 0 for i in range(1, GameConfig.BOARD_SIZE + 1)}
         for dice in dices_rolled:
@@ -128,7 +111,7 @@ class Game(BaseModel):
         camels = cls._find_camel_start_positions(dice_roller)
         return cls(
             dice_roller=dice_roller,
-            players=players,
+            players={p: Player(name=p) for p in players},
             current_leg=Leg(
                 camel_states={camel.color: camel for camel in camels}),
             next_leg_player=starting_player_index
@@ -148,20 +131,20 @@ class Game(BaseModel):
     def play_action(self, action: Action):
         # Action 1: Player rolls a dice
         if action.dice_rolled is not None:
-            game_finished = self.current_leg.move_camel(dice=action.dice_rolled)
+            game_finished = self.current_leg.move_camel(dice=action.dice_rolled, player=action.player)
             if game_finished:
                 self.finish_game()
-                return
-        # Action 2: Player places cheering or booming tile
-        if action.cheering_tile_placed is not None:
-            self.current_leg.place_tile(position=action.cheering_tile_placed, cheering=True)
             return
-        if action.booming_tile_placed is not None:
-            self.current_leg.place_tile(position=action.booming_tile_placed, cheering=False)
+        # Action 2: Player places cheering or booing tile
+        if action.cheering_tile_placed is not None:
+            self.current_leg.place_tile(position=action.cheering_tile_placed, player=action.player, cheering=True)
+            return
+        if action.booing_tile_placed is not None:
+            self.current_leg.place_tile(position=action.booing_tile_placed, player=action.player, cheering=False)
             return
         # Action 3: Player places leg bet
         if action.leg_bet is not None:
-            self.current_leg.bet_camel_wins_leg(camel_color=action.leg_bet)
+            self.current_leg.bet_camel_wins_leg(camel_color=action.leg_bet, player=action.player)
             return
         # Action 4: Player places game winner bet
         if action.game_winner_bet is not None:
@@ -171,6 +154,22 @@ class Game(BaseModel):
         if action.game_loser_bet is not None:
             self._game_loser_bets[action.game_loser_bet].append(action.player)
             return
+        
+    def first_camel(self) -> Camel:
+        camels_in_order = sorted(
+            [c for c in self.current_leg.camel_states.values() if not c.is_crazy()],
+            key=lambda c: (c.track_pos, c.stack_pos),
+            reverse=True
+        )
+        return camels_in_order[0]
+
+    def last_camel(self) -> Camel:
+        camels_in_order = sorted(
+            [c for c in self.current_leg.camel_states.values() if not c.is_crazy()],
+            key=lambda c: (c.track_pos, c.stack_pos),
+            reverse=False
+        )
+        return camels_in_order[0]
 
     def reset(self):
         self.players = {p: Player(name=p) for p in self.players.keys()}

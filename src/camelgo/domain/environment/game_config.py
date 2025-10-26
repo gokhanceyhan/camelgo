@@ -7,6 +7,7 @@ class GameConfig:
     NUM_CRAZY_CAMELS = 2  # Number of crazy camels
     CAMEL_COLORS = ['blue', 'yellow', 'green', 'purple', 'red']  # Standard camel colors
     CRAZY_CAMELS = ['white', 'black']  # Camels that move backwards
+    ALL_CAMEL_COLORS = CAMEL_COLORS + CRAZY_CAMELS
     DICE_VALUES = [1, 2, 3]  # Possible dice roll values
     BET_VALUES = [5, 3, 2, 2]  # Bet values for first to third place and subsequent bets
     STARTING_MONEY = 3  # Starting money for each player

@@ -12,7 +12,7 @@ class Leg(BaseModel):
 
     # reset the following at the start of each leg
     cheering_tiles: List[Tuple[int, str]] = []  # Position and players of the cheering tiles, if placed
-    booming_tiles: List[Tuple[int, str]] = []  # Position and players of the booming tiles, if placed
+    booing_tiles: List[Tuple[int, str]] = []  # Position and players of the booing tiles, if placed
     leg_points: Dict[str, int] = defaultdict(int)  # player -> points earned in this leg from dice rolls and tiles
     player_bets: Dict[str, Dict[str, List[str]]] = defaultdict(lambda: defaultdict(list))  # player -> color -> bets to win the leg
 
@@ -39,22 +39,22 @@ class Leg(BaseModel):
         moving_stack = [c for c in self.camel_states.values() if c.track_pos == camel.track_pos and c.stack_pos >= camel.stack_pos]
         
         # find the new position
-        next_pos = camel.track_pos + dice.value if not camel.is_crazy() else camel.track_pos - dice.value
+        next_pos = camel.track_pos + dice.number if not camel.is_crazy() else camel.track_pos - dice.number
         final_pos = next_pos
         if self.cheering_tiles and next_pos in [pos for pos, _ in self.cheering_tiles]:
             final_pos += 1 if not camel.is_crazy() else -1
             point_for_player = [player for pos, player in self.cheering_tiles if pos == next_pos][0]
             self.leg_points[point_for_player] += 1  # Award 1 point to the player who placed the cheering tile
-        boomed = False
-        if self.booming_tiles and next_pos in [pos for pos, _ in self.booming_tiles]:
-            boomed = True
+        booed = False
+        if self.booing_tiles and next_pos in [pos for pos, _ in self.booing_tiles]:
+            booed = True
             final_pos += 1 if camel.is_crazy() else -1
-            point_for_player = [player for pos, player in self.booming_tiles if pos == next_pos][0]
-            self.leg_points[point_for_player] += 1  # Award 1 point to the player who placed the booming tile
+            point_for_player = [player for pos, player in self.booing_tiles if pos == next_pos][0]
+            self.leg_points[point_for_player] += 1  # Award 1 point to the player who placed the booing tile
 
         on_camels = [c for c in self.camel_states.values() if c.color != dice.color and c.track_pos == final_pos]
         if on_camels:
-            if not boomed:
+            if not booed:
                 # stack on top of the existing camels
                 max_stack_pos = max(c.stack_pos for c in on_camels)
                 for idx, c in enumerate(moving_stack):
@@ -86,13 +86,13 @@ class Leg(BaseModel):
         if position in camel_tiles:
             raise ValueError("Cannot place a tile on a tile occupied by a camel.")
         # 3. It cannot be placed on or besides an already existing tile
-        existing_tile_pos = [pos for pos, _ in (self.cheering_tiles + self.booming_tiles)]
+        existing_tile_pos = [pos for pos, _ in (self.cheering_tiles + self.booing_tiles)]
         if existing_tile_pos and any(abs(pos - position) <= 1 for pos in existing_tile_pos):
             raise ValueError("Cannot place a tile on or beside an existing tile.")
         if cheering:
             self.cheering_tiles.append((position, player))
         else:
-            self.booming_tiles.append((position, player))
+            self.booing_tiles.append((position, player))
 
     def bet_camel_wins_leg(self, camel_color: str, player: str) -> None:
         camel = self.camel_states.get(camel_color)
@@ -103,7 +103,7 @@ class Leg(BaseModel):
 
     def reset_leg(self) -> None:
         self.cheering_tiles = []
-        self.booming_tiles = []
+        self.booing_tiles = []
         self.leg_points = defaultdict(int)
         self.player_bets = defaultdict(lambda: defaultdict(list))
         for camel in self.camel_states.values():

@@ -12,5 +12,11 @@
             "program": "${file}",
             "console": "integratedTerminal"
         },
+        {
+            "name": "Python Debugger: Attach to Process",
+            "type": "debugpy",
+            "request": "attach",    
+            "connect": { "host": "localhost", "port": 5678 }
+        }
     ]
 }

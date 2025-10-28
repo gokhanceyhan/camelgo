@@ -83,14 +83,14 @@ class Game(BaseModel):
         dice_roller.reset()
         for i in range(len(DiceRoller.DICE_COLORS)):
             dice_roller.roll_dice()
+        dices_rolled = dice_roller.dices_rolled[:]
         # find first grey dice color
         first_grey_dice = next(d for d in dice_roller.dices_rolled if d.color == 'white' or d.color == 'black')
         second_grey_dice = dice_roller.roll_grey_dice()
         if first_grey_dice.color == 'white':
-            second_grey_dice = Dice(color='black', number=second_grey_dice.number)
+            second_grey_dice = Dice(color='grey', number=second_grey_dice.number, number_color='black')
         else:
-            second_grey_dice = Dice(color='white', number=second_grey_dice.number)
-        dices_rolled = dice_roller.dices_rolled
+            second_grey_dice = Dice(color='grey', number=second_grey_dice.number, number_color='white')
         dices_rolled.append(second_grey_dice)
         dice_roller.reset()
 

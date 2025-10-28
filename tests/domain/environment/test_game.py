@@ -79,12 +79,11 @@ def test_start_game(dice_roller):
     game = Game.start_game(players=players, dice_roller=dice_roller)
     assert game is not None
     assert game.players.keys() == {"Alice", "Bob"}
-    assert len(game.current_leg.camel_states) == 6
+    assert len(game.current_leg.camel_states) == 7
     assert game.current_leg.camel_states["blue"].track_pos == 2
-    assert game.current_leg.camel_states["blue"].stack_pos == 0
+    assert game.current_leg.camel_states["blue"].stack_pos == 1
     assert game.first_camel().color == "green"
-    assert game.last_camel().color == "red"
-
+    assert game.last_camel().color == "purple"
 
 def test_player_dice_roll_action(game_new_start, action_alice_roll_red_3):
     # given

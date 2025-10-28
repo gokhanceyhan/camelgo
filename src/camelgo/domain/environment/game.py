@@ -19,10 +19,11 @@ class Game(BaseModel):
     current_leg: Leg
     legs_played: int = 0
     next_leg_player: int = 0  # Player index to start next leg
+    finished: bool = False
 
     # the following two states are hidden
-    _game_winner_bets: Dict[str, List[str]] = defaultdict(list)  # camel color -> list of player names (first player bets first) who bet on it to win
-    _game_loser_bets: Dict[str, List[str]] = defaultdict(list)   # camel color -> list of player names (first player bets first) who bet on it to lose
+    hidden_game_winner_bets: Dict[str, List[str]] = defaultdict(list)  # camel color -> list of player names (first player bets first) who bet on it to win
+    hidden_game_loser_bets: Dict[str, List[str]] = defaultdict(list)   # camel color -> list of player names (first player bets first) who bet on it to lose
 
     def _distribute_leg_points(self):
         # determine camels' positions in the leg
@@ -41,39 +42,39 @@ class Game(BaseModel):
                     continue
                 camel_position = camels_in_order.index(camel) + 1  # 1-based position
                 if camel_position == 1:
-                    player.points += sum(bets)
+                    player.add_points(sum(bets))
                 elif camel_position == 2:
-                    player.points += len(bets)
+                    player.add_points(len(bets))
                 else:
-                    player.points = max(0, player.points - len(bets))
+                    player.add_points(max(-player.points, -len(bets)))
             # collect points from dice rolls and tiles
-            player.points += self.current_leg.leg_points[player.name]
+            player.add_points(self.current_leg.leg_points[player.name])
 
     def _distribute_game_points(self):
         winner_camel = self.first_camel()
         loser_camel = self.last_camel()
         # distribute points to the players who knew winner or the loser camel
         winner_points = GameConfig.CORRECT_GAME_BET_POINTS[:]
-        for player_name in self._game_winner_bets[winner_camel.color]:
+        for player_name in self.hidden_game_winner_bets.get(winner_camel.color, []):
             player = self.players[player_name]
-            player.points += winner_points.pop(0) if winner_points else 0
+            player.add_points(winner_points.pop(0) if winner_points else 0)
         loser_points = GameConfig.CORRECT_GAME_BET_POINTS[:]
-        for player_name in self._game_loser_bets[loser_camel.color]:
+        for player_name in self.hidden_game_loser_bets.get(loser_camel.color, []):
             player = self.players[player_name]
-            player.points += loser_points.pop(0) if loser_points else 0
+            player.add_points(loser_points.pop(0) if loser_points else 0)
         # collect penalty points from the players who bet on the wrong camels
-        for camel_color, player_names in self._game_winner_bets.items():
+        for camel_color, player_names in self.hidden_game_winner_bets.items():
             if camel_color == winner_camel.color:
                 continue
             for player_name in player_names:
                 player = self.players[player_name]
-                player.points = max(0, player.points - GameConfig.INCORRECT_GAME_BET_PENALTY)
-        for camel_color, player_names in self._game_loser_bets.items():
+                player.add_points(max(-player.points, -GameConfig.INCORRECT_GAME_BET_PENALTY))
+        for camel_color, player_names in self.hidden_game_loser_bets.items():
             if camel_color == loser_camel.color:
                 continue
             for player_name in player_names:
                 player = self.players[player_name]
-                player.points = max(0, player.points - GameConfig.INCORRECT_GAME_BET_PENALTY)
+                player.add_points(max(-player.points, -GameConfig.INCORRECT_GAME_BET_PENALTY))
 
     @classmethod
     def _find_camel_start_positions(cls, 
@@ -127,6 +128,7 @@ class Game(BaseModel):
         self._distribute_leg_points()
         self.legs_played += 1
         self._distribute_game_points()
+        self.finished = True
 
     def play_action(self, action: Action):
         # Action 1: Player rolls a dice
@@ -148,11 +150,11 @@ class Game(BaseModel):
             return
         # Action 4: Player places game winner bet
         if action.game_winner_bet is not None:
-            self._game_winner_bets[action.game_winner_bet].append(action.player)
+            self.hidden_game_winner_bets[action.game_winner_bet].append(action.player)
             return
         # Action 5: Player places game loser bet
         if action.game_loser_bet is not None:
-            self._game_loser_bets[action.game_loser_bet].append(action.player)
+            self.hidden_game_loser_bets[action.game_loser_bet].append(action.player)
             return
         
     def first_camel(self) -> Camel:
@@ -178,5 +180,5 @@ class Game(BaseModel):
             camel_states={camel.color: camel for camel in Game._find_camel_start_positions(self.dice_roller)}
         )
         self.next_leg_player = 0
-        self._game_winner_bets = defaultdict(list)
-        self._game_loser_bets = defaultdict(list)
+        self.hidden_game_winner_bets = defaultdict(list)
+        self.hidden_game_loser_bets = defaultdict(list)

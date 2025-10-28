@@ -14,7 +14,7 @@ class Leg(BaseModel):
     cheering_tiles: List[Tuple[int, str]] = []  # Position and players of the cheering tiles, if placed
     booing_tiles: List[Tuple[int, str]] = []  # Position and players of the booing tiles, if placed
     leg_points: Dict[str, int] = defaultdict(int)  # player -> points earned in this leg from dice rolls and tiles
-    player_bets: Dict[str, Dict[str, List[str]]] = defaultdict(lambda: defaultdict(list))  # player -> color -> bets to win the leg
+    player_bets: Dict[str, Dict[str, List[int]]] = defaultdict(lambda: defaultdict(list))  # player -> color -> bets to win the leg
 
     def move_camel(self, dice: Dice, player: str) -> bool:
         """

@@ -209,3 +209,9 @@ __marimo__/
 # SSL certificates (local dev only)
 cert.pem
 key.pem
+
+# Visual Studio Code - keep launch.json, settings.json, and tasks.json
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json

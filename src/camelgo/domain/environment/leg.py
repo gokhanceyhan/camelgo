@@ -1,13 +1,16 @@
 from collections import defaultdict
 from pydantic import BaseModel
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, OrderedDict, Tuple, Any
 
+from camelgo.domain.environment.action import Action
 from camelgo.domain.environment.camel import Camel
 from camelgo.domain.environment.dice import Dice
 from camelgo.domain.environment.game_config import GameConfig
+from camelgo.domain.environment.player import Player
 
 class Leg(BaseModel):
     leg_number: int = 1  # Which leg of the game (1, 2, ...)
+    players: OrderedDict[str, Player]  # Map of player names to player states
     camel_states: Dict[str, Camel]
 
     # reset the following at the start of each leg
@@ -15,8 +18,14 @@ class Leg(BaseModel):
     booing_tiles: List[Tuple[int, str]] = []  # Position and players of the booing tiles, if placed
     leg_points: Dict[str, int] = defaultdict(int)  # player -> points earned in this leg from dice rolls and tiles
     player_bets: Dict[str, Dict[str, List[int]]] = defaultdict(lambda: defaultdict(list))  # player -> color -> bets to win the leg
+    next_player: str = None  # Player whose turn it is to play the next action
 
-    def move_camel(self, dice: Dice, player: str) -> bool:
+    def _move_to_next_player(self):
+        player_names = list(self.players.keys())
+        current_index = player_names.index(self.next_player) if self.next_player else 0
+        self.next_player = player_names[(current_index + 1) % len(player_names)]
+
+    def _move_camel(self, dice: Dice, player: str) -> bool:
         """
         Move a camel by a certain number of tiles.
 
@@ -76,7 +85,7 @@ class Leg(BaseModel):
             return True
         return False
 
-    def place_tile(self, position: int, player: str, cheering: bool = True) -> None:
+    def _place_tile(self, position: int, player: str, cheering: bool = True) -> None:
         # rules:
         # 1. The position must be within the board limits.
         if position < 1 or position > GameConfig.BOARD_SIZE:
@@ -94,12 +103,25 @@ class Leg(BaseModel):
         else:
             self.booing_tiles.append((position, player))
 
-    def bet_camel_wins_leg(self, camel_color: str, player: str) -> None:
+    def _bet_camel_wins_leg(self, camel_color: str, player: str) -> None:
         camel = self.camel_states.get(camel_color)
         if not camel:
             raise ValueError(f"No camel exists with color {camel_color}.")
         bet_value = camel.bet()
         self.player_bets[player][camel_color].append(bet_value)
+
+    def play_action(self, action: Action) -> Any:
+        action_return = None
+        if action.dice_rolled:
+            action_return = self._move_camel(action.dice_rolled, action.player)
+        if action.cheering_tile_placed is not None:
+            action_return = self._place_tile(action.cheering_tile_placed, action.player, cheering=True)
+        if action.booing_tile_placed is not None:
+            action_return = self._place_tile(action.booing_tile_placed, action.player, cheering=False)
+        if action.leg_bet is not None:
+            action_return = self._bet_camel_wins_leg(action.leg_bet, action.player)
+        self._move_to_next_player()
+        return action_return
 
     def reset_leg(self) -> None:
         self.cheering_tiles = []
@@ -109,6 +131,7 @@ class Leg(BaseModel):
         for camel in self.camel_states.values():
             camel.reset_for_new_leg()
 
-    def next(self) -> None:
+    def next(self, starting_player: str) -> None:
         self.reset_leg()
         self.leg_number += 1
+        self.next_player = starting_player

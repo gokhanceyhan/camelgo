@@ -23,8 +23,13 @@ def game_new_start(players, dice_roller):
     camels = {color: Camel(color=color, track_pos=1, stack_pos=i) for i, color in enumerate(GameConfig.CAMEL_COLORS)}
     crazy_camels = {color: Camel(color=color, track_pos=GameConfig.BOARD_SIZE, stack_pos=i) for i, color in enumerate(GameConfig.CRAZY_CAMELS)}
     camels.update(crazy_camels)
-    leg = Leg(leg_number=1, camel_states=camels)
-    game = Game(players=players, current_leg=leg, dice_roller=dice_roller)
+    leg = Leg(leg_number=1, camel_states=camels, players=players)
+    game = Game(
+        players=players, 
+        current_leg=leg, 
+        dice_roller=dice_roller, 
+        next_leg_starting_player="Alice"
+    )
     return game
 
 @pytest.fixture
@@ -42,6 +47,7 @@ def game_about_to_end(players, dice_roller):
     }
     leg = Leg(
         leg_number=10, 
+        players=players,
         camel_states=camels,
         leg_points={
             "Alice": 5,
@@ -58,7 +64,7 @@ def game_about_to_end(players, dice_roller):
         dice_roller=dice_roller, 
         legs_played=10, 
         finished=False,
-        next_leg_player=0, 
+        next_leg_starting_player='Bob', 
         hidden_game_winner_bets={
             'red': ['Alice'],
             'blue': ['Bob']
@@ -75,8 +81,8 @@ def action_alice_roll_red_3():
 
 
 def test_start_game(dice_roller):
-    players = ["Alice", "Bob"]
-    game = Game.start_game(players=players, dice_roller=dice_roller)
+    player_names = ["Alice", "Bob"]
+    game = Game.start_game(player_names=player_names, dice_roller=dice_roller)
     assert game is not None
     assert game.players.keys() == {"Alice", "Bob"}
     assert len(game.current_leg.camel_states) == 7
@@ -192,7 +198,8 @@ def test_move_to_next_leg(game_about_to_end):
     for camel in game.current_leg.camel_states.values():
         assert camel.available_bets == GameConfig.BET_VALUES
         assert camel.dice_value is None
-    assert game.next_leg_player == 1 # was 0 before, should increment by 1
+    assert game.current_leg.next_player == "Bob"
+    assert game.next_leg_starting_player == "Alice"
     assert game.players["Alice"].points == 17
     assert game.players["Bob"].points == 6
 

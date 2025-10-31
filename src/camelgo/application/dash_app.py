@@ -6,10 +6,11 @@
 
 import os
 
-from camelgo.domain.environment.game import Game
 import dash
 from dash import html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
+
+from camelgo.domain.environment.game import Game
 
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -24,6 +25,7 @@ app.layout = dbc.Container([
             html.Div(id="game-state-left", className="mt-3")
         ], width=6),
         dbc.Col([
+            html.H4("Game State", className="mb-3"),  # Header for right column
             html.Div(id="game-state", className="mt-3")
         ], width=6)
     ])

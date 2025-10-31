@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pydantic import BaseModel
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, OrderedDict
 
 from camelgo.domain.environment.action import Action
 from camelgo.domain.environment.camel import Camel
@@ -15,10 +15,10 @@ class Game(BaseModel):
     Stores the game state of a CamelUp game.
     """
     dice_roller: DiceRoller
-    players: Dict[str, Player]  # Map of player names to player states
+    players: OrderedDict[str, Player]  # Map of player names to player states
+    next_leg_starting_player: str
     current_leg: Leg
     legs_played: int = 0
-    next_leg_player: int = 0  # Player index to start next leg
     finished: bool = False
 
     # the following two states are hidden
@@ -103,27 +103,38 @@ class Game(BaseModel):
             stacks[track_pos] += 1  # Increment stack position for that tile
         return camels
 
+    def _move_to_next_leg_starting_player(self):
+        player_names = list(self.players.keys())
+        current_index = player_names.index(self.next_leg_starting_player)
+        next_index = (current_index + 1) % len(player_names)
+        self.next_leg_starting_player = player_names[next_index]
+
     @classmethod
     def start_game(cls, 
-                   players: List[str], 
+                   player_names: List[str], 
                    starting_player_index: int = 0, 
                    dice_roller: DiceRoller=None) -> 'Game':
         dice_roller = dice_roller or DiceRoller()
+        players = {p: Player(name=p) for p in player_names}
         camels = cls._find_camel_start_positions(dice_roller)
         return cls(
             dice_roller=dice_roller,
-            players={p: Player(name=p) for p in players},
+            players=players,
             current_leg=Leg(
-                camel_states={camel.color: camel for camel in camels}),
-            next_leg_player=starting_player_index
+                leg_number=1,
+                players=players,
+                camel_states={camel.color: camel for camel in camels},
+                next_player=player_names[starting_player_index]
+            ),
+            next_leg_starting_player=player_names[starting_player_index]
         )
 
     def move_to_next_leg(self):
         self._distribute_leg_points()
         self.legs_played += 1
-        self.current_leg.next()
-        self.next_leg_player = (self.next_leg_player + 1) % len(self.players)
-
+        self.current_leg.next(self.next_leg_starting_player)
+        self._move_to_next_leg_starting_player()
+        
     def finish_game(self):
         self._distribute_leg_points()
         self.legs_played += 1
@@ -133,20 +144,20 @@ class Game(BaseModel):
     def play_action(self, action: Action):
         # Action 1: Player rolls a dice
         if action.dice_rolled is not None:
-            game_finished = self.current_leg.move_camel(dice=action.dice_rolled, player=action.player)
+            game_finished = self.current_leg.play_action(action)
             if game_finished:
                 self.finish_game()
             return
         # Action 2: Player places cheering or booing tile
         if action.cheering_tile_placed is not None:
-            self.current_leg.place_tile(position=action.cheering_tile_placed, player=action.player, cheering=True)
+            self.current_leg.play_action(action)
             return
         if action.booing_tile_placed is not None:
-            self.current_leg.place_tile(position=action.booing_tile_placed, player=action.player, cheering=False)
+            self.current_leg.play_action(action)
             return
         # Action 3: Player places leg bet
         if action.leg_bet is not None:
-            self.current_leg.bet_camel_wins_leg(camel_color=action.leg_bet, player=action.player)
+            self.current_leg.play_action(action)
             return
         # Action 4: Player places game winner bet
         if action.game_winner_bet is not None:
@@ -177,8 +188,10 @@ class Game(BaseModel):
         self.players = {p: Player(name=p) for p in self.players.keys()}
         self.legs_played = 0
         self.current_leg = Leg(
+            leg_number=1,
+            players=self.players,
             camel_states={camel.color: camel for camel in Game._find_camel_start_positions(self.dice_roller)}
         )
-        self.next_leg_player = 0
+        self.next_leg_starting_player = 0
         self.hidden_game_winner_bets = defaultdict(list)
         self.hidden_game_loser_bets = defaultdict(list)

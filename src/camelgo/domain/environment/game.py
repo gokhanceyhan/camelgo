@@ -1,5 +1,5 @@
 from collections import defaultdict
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Dict, Optional, List, OrderedDict
 
 from camelgo.domain.environment.action import Action
@@ -24,6 +24,14 @@ class Game(BaseModel):
     # the following two states are hidden
     hidden_game_winner_bets: Dict[str, List[str]] = defaultdict(list)  # camel color -> list of player names (first player bets first) who bet on it to win
     hidden_game_loser_bets: Dict[str, List[str]] = defaultdict(list)   # camel color -> list of player names (first player bets first) who bet on it to lose
+
+    @model_validator(mode="after")
+    def ensure_defaultdicts(self):
+        if not isinstance(self.hidden_game_winner_bets, defaultdict):
+            self.hidden_game_winner_bets = defaultdict(list, self.hidden_game_winner_bets)
+        if not isinstance(self.hidden_game_loser_bets, defaultdict):
+            self.hidden_game_loser_bets = defaultdict(list, self.hidden_game_loser_bets)
+        return self
 
     def _distribute_leg_points(self):
         # determine camels' positions in the leg

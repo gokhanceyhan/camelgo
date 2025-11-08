@@ -269,3 +269,11 @@ def test_next_leg(players):
         assert camel.dice_value is None
         assert camel.available_bets == GameConfig.BET_VALUES
     assert leg.next_player == "Alice"
+
+def test_leg_model_validate(players, camels_on_different_tiles):
+    leg = Leg(leg_number=1, camel_states=camels_on_different_tiles, players=players)
+    dumped = leg.model_dump()
+    leg2 = Leg.model_validate(dumped)
+    # Ensure defaultdicts are restored
+    assert isinstance(leg2.leg_points, type(leg.leg_points))
+    assert isinstance(leg2.player_bets, type(leg.player_bets))

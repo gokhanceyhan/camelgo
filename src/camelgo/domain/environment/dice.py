@@ -1,6 +1,6 @@
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr
 import random
-from typing import List, Set
+from typing import ClassVar, List, Set
 
 from camelgo.domain.environment.game_config import GameConfig
 
@@ -22,32 +22,33 @@ class Dice(BaseModel):
         return self._color
 	
 
-class DiceRoller:
+class DiceRoller(BaseModel):
     # There are 6 dice in total, 5 for normal camels and 1 for crazy camel
-    DICE_COLORS = ['red', 'blue', 'green', 'yellow', 'purple', 'grey']  # grey is for the crazy camel
+    DICE_COLORS: ClassVar[List[str]] = ['red', 'blue', 'green', 'yellow', 'purple', 'grey']  # grey is for the crazy camel
     # Each dice can roll a number between 1 and 3
-    DICE_NUMBERS = [1, 2, 3]
+    DICE_NUMBERS: ClassVar[List[int]] = [1, 2, 3]
     # Grey dice numbers are either in white or black indicating the crazy camel
-    GREY_DICE_NUMBER_COLORS = ['white', 'black']
+    GREY_DICE_NUMBER_COLORS: ClassVar[List[str]] = ['white', 'black']
 
-    dices_rolled: List[Dice]
+    _rng: random.Random = PrivateAttr()
+    dices_rolled: List[Dice] = Field(default_factory=list)
 
-    def __init__(self, seed: int = 42):
+    def __init__(self, seed: int = 42, **data):
         # create a random number generator for reproducibility if needed
-        self.rng = random.Random(seed)
-        self.dices_rolled = []
+        super().__init__(**data)
+        self._rng = random.Random(seed)
 
     def roll_dice(self) -> Dice:
         # each rolled dice must have a unique color in a leg
         # privately access to the _color attribute not to pick grey color again
         colors = [c for c in DiceRoller.DICE_COLORS if c not in {d._color for d in self.dices_rolled}]
-        color = self.rng.choice(colors)
+        color = self._rng.choice(colors)
         if color == 'grey':
-            number_color = self.rng.choice(DiceRoller.GREY_DICE_NUMBER_COLORS)
-            number = self.rng.choice(DiceRoller.DICE_NUMBERS)
+            number_color = self._rng.choice(DiceRoller.GREY_DICE_NUMBER_COLORS)
+            number = self._rng.choice(DiceRoller.DICE_NUMBERS)
             dice = Dice(color=color, number=number, number_color=number_color)
         else:
-            number = self.rng.choice(DiceRoller.DICE_NUMBERS)
+            number = self._rng.choice(DiceRoller.DICE_NUMBERS)
             dice = Dice(color=color, number=number)
         self.dices_rolled.append(dice)
         return dice
@@ -56,8 +57,8 @@ class DiceRoller:
         """Specifically roll the grey dice for crazy camel (only at the beginning of the game).
         This is needed because there is only one dice for crazy camels.
         """
-        number_color = self.rng.choice(DiceRoller.GREY_DICE_NUMBER_COLORS)
-        number = self.rng.choice(DiceRoller.DICE_NUMBERS)
+        number_color = self._rng.choice(DiceRoller.GREY_DICE_NUMBER_COLORS)
+        number = self._rng.choice(DiceRoller.DICE_NUMBERS)
         dice = Dice(color='grey', number=number, number_color=number_color)
         self.dices_rolled.append(dice)
         return dice

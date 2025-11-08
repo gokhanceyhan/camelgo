@@ -1,5 +1,5 @@
 from collections import defaultdict
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 from typing import Dict, List, Optional, OrderedDict, Tuple, Any
 
 from camelgo.domain.environment.action import Action
@@ -14,11 +14,21 @@ class Leg(BaseModel):
     camel_states: Dict[str, Camel]
 
     # reset the following at the start of each leg
-    cheering_tiles: List[Tuple[int, str]] = []  # Position and players of the cheering tiles, if placed
-    booing_tiles: List[Tuple[int, str]] = []  # Position and players of the booing tiles, if placed
-    leg_points: Dict[str, int] = defaultdict(int)  # player -> points earned in this leg from dice rolls and tiles
-    player_bets: Dict[str, Dict[str, List[int]]] = defaultdict(lambda: defaultdict(list))  # player -> color -> bets to win the leg
-    next_player: str = None  # Player whose turn it is to play the next action
+    cheering_tiles: List[Tuple[int, str]] = Field(default_factory=list)  # Position and players of the cheering tiles, if placed
+    booing_tiles: List[Tuple[int, str]] = Field(default_factory=list)  # Position and players of the booing tiles, if placed
+    leg_points: Dict[str, int] = Field(default_factory=lambda: defaultdict(int))  # player -> points earned in this leg from dice rolls and tiles
+    player_bets: Dict[str, Dict[str, List[int]]] = Field(default_factory=lambda: defaultdict(lambda: defaultdict(list)))  # player -> color -> bets to win the leg
+    next_player: Optional[str] = None  # Player whose turn it is to play the next action
+
+    @model_validator(mode="after")
+    def ensure_defaultdicts(self):
+        if not isinstance(self.leg_points, defaultdict):
+            self.leg_points = defaultdict(int, self.leg_points)
+        if not isinstance(self.player_bets, defaultdict):
+            self.player_bets = defaultdict(lambda: defaultdict(list), {
+                k: defaultdict(list, v) for k, v in self.player_bets.items()
+            })
+        return self
 
     def _move_to_next_player(self):
         player_names = list(self.players.keys())

@@ -13,7 +13,6 @@ from camelgo.domain.environment.game_config import GameConfig
 def dice_roller():
     return DiceRoller(seed=123)
 
-
 @pytest.fixture
 def players():
     return {name: Player(name=name, points=3) for name in ["Alice", "Bob"]}
@@ -78,7 +77,6 @@ def game_about_to_end(players, dice_roller):
 @pytest.fixture
 def action_alice_roll_red_3():
     return Action(player="Alice", dice_rolled=Dice(color="red", number=3))
-
 
 def test_start_game(dice_roller):
     player_names = ["Alice", "Bob"]
@@ -227,3 +225,42 @@ def test_game_reset(game_new_start):
     assert game.hidden_game_loser_bets == {}
     for player in game.players.values():
         assert player.points == GameConfig.STARTING_MONEY
+
+def test_game_model_dump(game_new_start):
+    # Dump the model to a dict
+    dumped = game_new_start.model_dump()
+    # The result should be a dict
+    assert isinstance(dumped, dict)
+    # It should contain top-level keys
+    assert "dice_roller" in dumped
+    assert "players" in dumped
+    assert "current_leg" in dumped
+    # Nested models should also be dumped as dicts
+    assert isinstance(dumped["dice_roller"], dict)
+    assert isinstance(dumped["current_leg"], dict)
+    # Players should be a dict of dicts
+    assert isinstance(dumped["players"], dict)
+    for player in dumped["players"].values():
+        assert isinstance(player, dict)
+
+def test_game_model_validate(game_new_start):
+    # Dump the model to a dict
+    dumped = game_new_start.model_dump()
+    # Reconstruct the model from the dict
+    game = Game.model_validate(dumped)
+    # The reconstructed object should be a Game
+    assert isinstance(game, Game)
+    # The nested models should also be correct types
+    assert isinstance(game.dice_roller, DiceRoller)
+    assert isinstance(game.current_leg, Leg)
+    assert isinstance(game.players, dict)
+    for player in game.players.values():
+        assert hasattr(player, "name")
+    assert game.current_leg.leg_points['Alice'] == 0
+    # Ensure defaultdicts are restored
+    assert isinstance(game.hidden_game_winner_bets, type(game_new_start.hidden_game_winner_bets))
+    assert isinstance(game.hidden_game_loser_bets, type(game_new_start.hidden_game_loser_bets))
+    # Also check nested Leg defaultdicts
+    leg2 = game.current_leg
+    assert isinstance(leg2.leg_points, type(game_new_start.current_leg.leg_points))
+    assert isinstance(leg2.player_bets, type(game_new_start.current_leg.player_bets))

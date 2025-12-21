@@ -3,7 +3,7 @@ from camelgo.domain.environment.dice import Dice, DiceRoller
 from camelgo.domain.environment.game_config import GameConfig
 
 def test_dice_model():
-    dice = Dice(color="yellow", number=3)
+    dice = Dice(base_color="yellow", number=3)
     assert dice.color == "yellow"
     assert dice.number == 3
 

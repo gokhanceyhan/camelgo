@@ -101,8 +101,8 @@ def render_game_state(gs):
         dbc.CardHeader("Dices Rolled in Current Leg", style=card_style),
         dbc.CardBody([
             html.Ul([
-                html.Li(f"{d.color.title()} ({d.number})", style=card_style) for d in getattr(gs.dice_roller, "dices_rolled", [])
-            ]) if getattr(gs.dice_roller, "dices_rolled", []) else html.P("None yet.", style=card_style)
+                html.Li(f"{d.color.title()} ({d.number})", style=card_style) for d in gs.dice_roller.dices_rolled
+            ]) if gs.dice_roller.dices_rolled else html.P("None yet.", style=card_style)
         ])
     ], className="mb-2", style=card_style)
     leg_bets_section = dbc.Card([
@@ -110,8 +110,8 @@ def render_game_state(gs):
         dbc.CardBody([
             html.Ul([
                 html.Li(f"{player}: " + ", ".join([f'{camel}: {bets}' for camel, bets in bets_dict.items()]), style=card_style)
-                for player, bets_dict in getattr(gs.current_leg, "player_bets", {}).items()
-            ]) if getattr(gs.current_leg, "player_bets", {}) else html.P("No bets yet.", style=card_style)
+                for player, bets_dict in gs.current_leg.player_bets.items()
+            ]) if gs.current_leg.player_bets else html.P("No bets yet.", style=card_style)
         ])
     ], className="mb-2", style=card_style)
     points_section = dbc.Card([
@@ -198,7 +198,9 @@ def unified_callback(start_n,
         
         action_kwargs = {"player": player}
         if dice_color and dice_number:
-            action_kwargs["dice_rolled"] = Dice(color=dice_color, number=int(dice_number))
+            action_kwargs["dice_rolled"] = Dice(base_color=dice_color.lower(), number=int(dice_number))
+            # update the dicer roller in the game
+            gs.dice_roller.deterministic_roll_dice(action_kwargs["dice_rolled"])
         if tile_type == "cheering" and tile_pos:
             action_kwargs["cheering_tile_placed"] = int(tile_pos)
         if tile_type == "booing" and tile_pos:

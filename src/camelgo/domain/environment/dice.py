@@ -1,25 +1,21 @@
 from pydantic import BaseModel, Field, PrivateAttr
 import random
-from typing import ClassVar, List, Set
+from typing import ClassVar, List, Optional, Set
 
 from camelgo.domain.environment.game_config import GameConfig
 
 class Dice(BaseModel):
-    _color: str = PrivateAttr()
+    base_color: str
     number: int
-    number_color: str = 'white'  # only relevant for grey dice indicating crazy camel color
+    number_color: Optional[str] = 'white'  # only relevant for grey dice indicating crazy camel color
 
     model_config = {'frozen': True}
 
-    def __init__(self, color: str, number: int, number_color: str = 'white'):
-        super().__init__(number=number, number_color=number_color)
-        object.__setattr__(self, '_color', color)
-
     @property
     def color(self):
-        if self._color == 'grey':
+        if self.base_color == 'grey':
             return self.number_color
-        return self._color
+        return self.base_color
 	
 
 class DiceRoller(BaseModel):
@@ -41,15 +37,23 @@ class DiceRoller(BaseModel):
     def roll_dice(self) -> Dice:
         # each rolled dice must have a unique color in a leg
         # privately access to the _color attribute not to pick grey color again
-        colors = [c for c in DiceRoller.DICE_COLORS if c not in {d._color for d in self.dices_rolled}]
+        colors = [c for c in DiceRoller.DICE_COLORS if c not in {d.base_color for d in self.dices_rolled}]
         color = self._rng.choice(colors)
         if color == 'grey':
             number_color = self._rng.choice(DiceRoller.GREY_DICE_NUMBER_COLORS)
             number = self._rng.choice(DiceRoller.DICE_NUMBERS)
-            dice = Dice(color=color, number=number, number_color=number_color)
+            dice = Dice(base_color=color, number=number, number_color=number_color)
         else:
             number = self._rng.choice(DiceRoller.DICE_NUMBERS)
-            dice = Dice(color=color, number=number)
+            dice = Dice(base_color=color, number=number)
+        self.dices_rolled.append(dice)
+        return dice
+    
+    def deterministic_roll_dice(self, dice: Dice) -> Dice:
+        """Deterministically roll a dice with given color and number (for testing purposes)."""
+        rolled_colors = {d.color for d in self.dices_rolled}
+        if dice.color in rolled_colors:
+            raise ValueError(f"Dice with color {dice.color} has already been rolled.")
         self.dices_rolled.append(dice)
         return dice
     
@@ -59,7 +63,7 @@ class DiceRoller(BaseModel):
         """
         number_color = self._rng.choice(DiceRoller.GREY_DICE_NUMBER_COLORS)
         number = self._rng.choice(DiceRoller.DICE_NUMBERS)
-        dice = Dice(color='grey', number=number, number_color=number_color)
+        dice = Dice(base_color='grey', number=number, number_color=number_color)
         self.dices_rolled.append(dice)
         return dice
 

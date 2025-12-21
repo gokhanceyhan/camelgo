@@ -76,7 +76,7 @@ def game_about_to_end(players, dice_roller):
 
 @pytest.fixture
 def action_alice_roll_red_3():
-    return Action(player="Alice", dice_rolled=Dice(color="red", number=3))
+    return Action(player="Alice", dice_rolled=Dice(base_color="red", number=3))
 
 def test_start_game(dice_roller):
     player_names = ["Alice", "Bob"]

@@ -33,7 +33,7 @@ def test_leg_basic(camels_on_different_tiles, players):
 def test_leg_move_single_camel_above_another(camels_on_different_tiles, players):
     camels = camels_on_different_tiles
     leg = Leg(leg_number=1, camel_states=camels, players=players)
-    dice = Dice(color="blue", number=2)
+    dice = Dice(base_color="blue", number=2)
     # blue camel is at position 1
     # it has to move on top of the green camel at position 3
     player = "Alice"
@@ -51,7 +51,7 @@ def test_leg_move_stacked_camels_above_another(players):
         "purple": Camel(color="purple", track_pos=5, stack_pos=0)
     }
     leg = Leg(leg_number=1, camel_states=camels, players=players)
-    dice = Dice(color="red", number=2)
+    dice = Dice(base_color="red", number=2)
     player = "Bob"
     action = Action(dice_rolled=dice, player=player)
     game_finished = leg.play_action(action)
@@ -71,7 +71,7 @@ def test_leg_move_black_camel_with_red_above(players):
         "green": Camel(color="green", track_pos=2, stack_pos=0)
     }
     leg = Leg(leg_number=1, camel_states=camels, players=players)
-    dice = Dice(color="black", number=2)
+    dice = Dice(base_color="black", number=2)
     player = "Carol"
     action = Action(dice_rolled=dice, player=player)
     game_finished = leg.play_action(action)
@@ -94,7 +94,7 @@ def test_leg_move_camel_lands_on_cheering_tile(players):
     # Place a cheering tile at position 3 by player 'Dave'
     action_tile = Action(cheering_tile_placed=2, player="Dave")
     leg.play_action(action_tile)
-    dice = Dice(color="blue", number=1)
+    dice = Dice(base_color="blue", number=1)
     player = "Alice"
     action_roll = Action(dice_rolled=dice, player=player)
     game_finished = leg.play_action(action_roll)
@@ -114,7 +114,7 @@ def test_leg_move_camel_lands_on_booing_tile(players):
     # Place a booing tile at position 3 by player 'Eve'
     action_tile = Action(booing_tile_placed=3, player="Eve")
     leg.play_action(action_tile)
-    dice = Dice(color="blue", number=2)
+    dice = Dice(base_color="blue", number=2)
     player = "Alice"
     action_roll = Action(dice_rolled=dice, player=player)
     game_finished = leg.play_action(action_roll)
@@ -136,7 +136,7 @@ def test_leg_move_crazy_camel_lands_on_cheering_tile(players):
     # Place a cheering tile at position 3 by player 'Frank'
     action_tile = Action(cheering_tile_placed=4, player="Frank")
     leg.play_action(action_tile)
-    dice = Dice(color="white", number=1)
+    dice = Dice(base_color="white", number=1)
     player = "Alice"
     action_roll = Action(dice_rolled=dice, player=player)
     game_finished = leg.play_action(action_roll)
@@ -158,7 +158,7 @@ def test_leg_move_crazy_camel_lands_on_booing_tile(players):
     # Place a booing tile at position 2 by player 'Grace'
     action_tile = Action(booing_tile_placed=2, player="Grace")
     leg.play_action(action_tile)
-    dice = Dice(color="white", number=3)
+    dice = Dice(base_color="white", number=3)
     player = "Alice"
     action_roll = Action(dice_rolled=dice, player=player)
     game_finished = leg.play_action(action_roll)
@@ -177,7 +177,7 @@ def test_leg_move_camel_finishes_game(players):
         "green": Camel(color="green", track_pos=10, stack_pos=0)
     }
     leg = Leg(leg_number=1, camel_states=camels, players=players)
-    dice = Dice(color="blue", number=2)
+    dice = Dice(base_color="blue", number=2)
     player = "Alice"
     action = Action(dice_rolled=dice, player=player)
     game_finished = leg.play_action(action)

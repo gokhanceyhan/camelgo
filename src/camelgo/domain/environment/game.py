@@ -96,9 +96,9 @@ class Game(BaseModel):
         first_grey_dice = next(d for d in dice_roller.dices_rolled if d.color == 'white' or d.color == 'black')
         second_grey_dice = dice_roller.roll_grey_dice()
         if first_grey_dice.color == 'white':
-            second_grey_dice = Dice(color='grey', number=second_grey_dice.number, number_color='black')
+            second_grey_dice = Dice(base_color='grey', number=second_grey_dice.number, number_color='black')
         else:
-            second_grey_dice = Dice(color='grey', number=second_grey_dice.number, number_color='white')
+            second_grey_dice = Dice(base_color='grey', number=second_grey_dice.number, number_color='white')
         dices_rolled.append(second_grey_dice)
         dice_roller.reset()
 
@@ -142,6 +142,7 @@ class Game(BaseModel):
         self.legs_played += 1
         self.current_leg.next(self.next_leg_starting_player)
         self._move_to_next_leg_starting_player()
+        self.dice_roller.reset()
         
     def finish_game(self):
         self._distribute_leg_points()

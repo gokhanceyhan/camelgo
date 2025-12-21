@@ -114,6 +114,7 @@ class Leg(BaseModel):
             self.booing_tiles.append((position, player))
 
     def _bet_camel_wins_leg(self, camel_color: str, player: str) -> None:
+        camel_color = camel_color.lower()
         camel = self.camel_states.get(camel_color)
         if not camel:
             raise ValueError(f"No camel exists with color {camel_color}.")

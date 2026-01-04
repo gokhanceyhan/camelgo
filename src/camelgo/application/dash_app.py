@@ -105,6 +105,19 @@ def render_game_state(gs):
             ]) if gs.dice_roller.dices_rolled else html.P("None yet.", style=card_style)
         ])
     ], className="mb-2", style=card_style)
+    tiles_section = dbc.Card([
+        dbc.CardHeader("Tiles on Board", style=card_style),
+        dbc.CardBody([
+            html.H6("Cheering Tiles", style=card_style),
+            html.Ul([
+                html.Li(f"Track {pos} ({player})", style=card_style) for pos, player in gs.current_leg.cheering_tiles
+            ]) if gs.current_leg.cheering_tiles else html.P("None", style=card_style),
+            html.H6("Booing Tiles", style=card_style),
+            html.Ul([
+                html.Li(f"Track {pos} ({player})", style=card_style) for pos, player in gs.current_leg.booing_tiles
+            ]) if gs.current_leg.booing_tiles else html.P("None", style=card_style)
+        ])
+    ], className="mb-2", style=card_style)
     leg_bets_section = dbc.Card([
         dbc.CardHeader("Leg Bets of Players", style=card_style),
         dbc.CardBody([
@@ -143,6 +156,7 @@ def render_game_state(gs):
         next_leg_section,
         next_player_section,
         dices_rolled_section,
+        tiles_section,
         leg_bets_section,
         points_section,
         winner_bets_section,

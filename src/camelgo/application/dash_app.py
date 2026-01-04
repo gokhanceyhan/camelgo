@@ -41,6 +41,7 @@ app.layout = dbc.Container([
             dbc.Input(id="action-winner-bet", type="text", placeholder="Game winner bet (optional)", className="mb-2"),
             dbc.Input(id="action-loser-bet", type="text", placeholder="Game loser bet (optional)", className="mb-2"),
             dbc.Button("Play Action", id="action-played-btn", color="primary", className="mb-2"),
+            dbc.Button("Finish Leg", id="finish-leg-btn", color="warning", className="mb-2 ms-2"),
             html.Div(id="action-feedback", className="mt-2"),
         ], width=6),
         dbc.Col([
@@ -184,6 +185,7 @@ def render_game_state(gs):
     Output("action-loser-bet", "value"),
     Input("start-btn", "n_clicks"),
     Input("action-played-btn", "n_clicks"),
+    Input("finish-leg-btn", "n_clicks"),
     State("players-input", "value"),
     State("game-store", "data"),
     State("action-player", "value"),
@@ -197,6 +199,7 @@ def render_game_state(gs):
 )
 def unified_callback(start_n, 
                      action_n, 
+                     finish_leg_n,
                      players_value, 
                      game_data, 
                      player, 
@@ -222,6 +225,17 @@ def unified_callback(start_n,
             # Robust recursive serialization for game state
             return (render_game_state(gs), "Game started.", gs.model_dump()) + reset_values
         return ("", "", None) + reset_values
+    elif trigger == "finish-leg-btn":
+        if not finish_leg_n or not game_data:
+            return (dash.no_update, "", dash.no_update) + reset_values
+        
+        gs = Game.model_validate(game_data)
+        try:
+            gs.move_to_next_leg()
+            feedback = "Moved to next leg."
+        except Exception as e:
+            feedback = f"Error: {e}\n{traceback.format_exc()}"
+        return (render_game_state(gs), feedback, gs.model_dump()) + reset_values
     elif trigger == "action-played-btn":
         if not action_n or not game_data:
             return (dash.no_update, "", dash.no_update) + reset_values

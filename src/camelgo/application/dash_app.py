@@ -42,6 +42,7 @@ app.layout = dbc.Container([
             dbc.Input(id="action-loser-bet", type="text", placeholder="Game loser bet (optional)", className="mb-2"),
             dbc.Button("Play Action", id="action-played-btn", color="primary", className="mb-2"),
             dbc.Button("Finish Leg", id="finish-leg-btn", color="warning", className="mb-2 ms-2"),
+            dbc.Button("Reset Game", id="reset-game-btn", color="danger", className="mb-2 ms-2"),
             html.Div(id="action-feedback", className="mt-2"),
         ], width=6),
         dbc.Col([
@@ -186,6 +187,7 @@ def render_game_state(gs):
     Input("start-btn", "n_clicks"),
     Input("action-played-btn", "n_clicks"),
     Input("finish-leg-btn", "n_clicks"),
+    Input("reset-game-btn", "n_clicks"),
     State("players-input", "value"),
     State("game-store", "data"),
     State("action-player", "value"),
@@ -200,6 +202,7 @@ def render_game_state(gs):
 def unified_callback(start_n, 
                      action_n, 
                      finish_leg_n,
+                     reset_game_n,
                      players_value, 
                      game_data, 
                      player, 
@@ -225,6 +228,12 @@ def unified_callback(start_n,
             # Robust recursive serialization for game state
             return (render_game_state(gs), "Game started.", gs.model_dump()) + reset_values
         return ("", "", None) + reset_values
+    elif trigger == "reset-game-btn":
+        if not reset_game_n:
+            return (dash.no_update, "", dash.no_update) + reset_values
+        
+        # Reset game state completely
+        return ("", "Game reset.", None) + reset_values
     elif trigger == "finish-leg-btn":
         if not finish_leg_n or not game_data:
             return (dash.no_update, "", dash.no_update) + reset_values

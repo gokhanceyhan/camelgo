@@ -118,7 +118,7 @@ def render_game_state(gs):
         dbc.CardHeader("Points of Players", style=card_style),
         dbc.CardBody([
             html.Ul([
-                html.Li(f"{name}: {player.points}", style=card_style) for name, player in gs.players.items()
+                html.Li(f"{name}: {player.points + gs.current_leg.leg_points[name]}", style=card_style) for name, player in gs.players.items()
             ])
         ])
     ], className="mb-2", style=card_style)

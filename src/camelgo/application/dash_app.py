@@ -89,6 +89,10 @@ def render_game_state(gs):
             ], width=3)
         )
     card_style = {"fontSize": "0.85rem", "padding": "0.5rem"}
+    players_section = dbc.Card([
+        dbc.CardHeader("Players", style=card_style),
+        dbc.CardBody(html.P(", ".join(gs.players.keys()), style=card_style))
+    ], className="mb-2", style=card_style)
     next_leg_section = dbc.Card([
         dbc.CardHeader("Player to Start Next Leg", style=card_style),
         dbc.CardBody(html.P(gs.next_leg_starting_player, style=card_style))
@@ -152,6 +156,7 @@ def render_game_state(gs):
         ])
     ], className="mb-2", style=card_style)
     return html.Div([
+        players_section,
         dbc.Row(camel_cells),
         next_leg_section,
         next_player_section,
@@ -168,6 +173,15 @@ def render_game_state(gs):
     Output("game-state", "children"),
     Output("action-feedback", "children"),
     Output("game-store", "data"),
+    Output("players-input", "value"),
+    Output("action-player", "value"),
+    Output("action-dice-color", "value"),
+    Output("action-dice-number", "value"),
+    Output("action-tile-type", "value"),
+    Output("action-tile-pos", "value"),
+    Output("action-leg-bet", "value"),
+    Output("action-winner-bet", "value"),
+    Output("action-loser-bet", "value"),
     Input("start-btn", "n_clicks"),
     Input("action-played-btn", "n_clicks"),
     State("players-input", "value"),
@@ -195,18 +209,22 @@ def unified_callback(start_n,
                      loser_bet):
     ctx = dash.callback_context
     if not ctx.triggered:
-        return "", "", None
+        return "", "", None, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
     trigger = ctx.triggered[0]["prop_id"].split(".")[0]
+    
+    # Reset values for inputs
+    reset_values = ("", None, "", None, "none", None, "", "", "")
+    
     if trigger == "start-btn":
         if start_n and players_value:
             players = [p.strip() for p in players_value.split(",") if p.strip()]
             gs = Game.start_game(player_names=players)
             # Robust recursive serialization for game state
-            return render_game_state(gs), "Game started.", gs.model_dump()
-        return "", "", None
+            return (render_game_state(gs), "Game started.", gs.model_dump()) + reset_values
+        return ("", "", None) + reset_values
     elif trigger == "action-played-btn":
         if not action_n or not game_data:
-            return dash.no_update, "", dash.no_update
+            return (dash.no_update, "", dash.no_update) + reset_values
         
         gs = Game.model_validate(game_data)
         
@@ -233,9 +251,9 @@ def unified_callback(start_n,
         except Exception as e:
             feedback = f"Error: {e}\n{traceback.format_exc()}"
         # Robust recursive serialization for game state
-        return render_game_state(gs), feedback, gs.model_dump()
+        return (render_game_state(gs), feedback, gs.model_dump()) + reset_values
     
-    return dash.no_update, dash.no_update, dash.no_update
+    return (dash.no_update, dash.no_update, dash.no_update) + (dash.no_update,) * 9
 
 
 if __name__ == "__main__":

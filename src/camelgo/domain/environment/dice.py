@@ -69,3 +69,6 @@ class DiceRoller(BaseModel):
 
     def reset(self) -> None:
         self.dices_rolled = []
+
+    def remaining_colors(self) -> Set[str]:
+        return {c for c in DiceRoller.DICE_COLORS if c not in {d.base_color for d in self.dices_rolled}}

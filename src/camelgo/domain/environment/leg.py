@@ -121,18 +121,26 @@ class Leg(BaseModel):
         bet_value = camel.bet()
         self.player_bets[player][camel_color].append(bet_value)
 
-    def play_action(self, action: Action) -> Any:
-        action_return = None
+    def play_action(self, action: Action) -> bool:
+        """
+        Play an action in the current leg.
+        
+        :param action: The action to be played.
+        :type action: Action
+        :return: True if the game finishes after this action, False otherwise.
+        :rtype: bool
+        """
+        game_finishes = False
         if action.dice_rolled:
-            action_return = self._move_camel(action.dice_rolled, action.player)
+            game_finishes = self._move_camel(action.dice_rolled, action.player)
         if action.cheering_tile_placed is not None:
-            action_return = self._place_tile(action.cheering_tile_placed, action.player, cheering=True)
+            self._place_tile(action.cheering_tile_placed, action.player, cheering=True)
         if action.booing_tile_placed is not None:
-            action_return = self._place_tile(action.booing_tile_placed, action.player, cheering=False)
+            self._place_tile(action.booing_tile_placed, action.player, cheering=False)
         if action.leg_bet is not None:
-            action_return = self._bet_camel_wins_leg(action.leg_bet, action.player)
+            self._bet_camel_wins_leg(action.leg_bet, action.player)
         self._move_to_next_player()
-        return action_return
+        return game_finishes
 
     def reset_leg(self) -> None:
         self.cheering_tiles = []

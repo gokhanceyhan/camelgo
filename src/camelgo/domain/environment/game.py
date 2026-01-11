@@ -136,6 +136,12 @@ class Game(BaseModel):
             ),
             next_leg_starting_player=player_names[starting_player_index]
         )
+    
+    def roll_dice(self) -> Dice:
+        return self.dice_roller.roll_dice()
+    
+    def leg_finished(self) -> bool:
+        return len(self.dice_roller.remaining_colors()) <= 1
 
     def move_to_next_leg(self):
         self._distribute_leg_points()
@@ -150,32 +156,42 @@ class Game(BaseModel):
         self._distribute_game_points()
         self.finished = True
 
-    def play_action(self, action: Action):
+    def play_action(self, action: Action) -> bool:
+        """
+        Play an action in the game.
+        Args:
+            action (Action): The action to be played.
+        Returns:
+            bool: True if the game is finished after the action, False otherwise.
+        """
         # Action 1: Player rolls a dice
         if action.dice_rolled is not None:
             game_finished = self.current_leg.play_action(action)
             if game_finished:
                 self.finish_game()
-            return
+                return True
+            if self.leg_finished():
+                self.move_to_next_leg()
+            return False
         # Action 2: Player places cheering or booing tile
         if action.cheering_tile_placed is not None:
             self.current_leg.play_action(action)
-            return
+            return False
         if action.booing_tile_placed is not None:
             self.current_leg.play_action(action)
-            return
+            return False
         # Action 3: Player places leg bet
         if action.leg_bet is not None:
             self.current_leg.play_action(action)
-            return
+            return False
         # Action 4: Player places game winner bet
         if action.game_winner_bet is not None:
             self.hidden_game_winner_bets[action.game_winner_bet].append(action.player)
-            return
+            return False
         # Action 5: Player places game loser bet
         if action.game_loser_bet is not None:
             self.hidden_game_loser_bets[action.game_loser_bet].append(action.player)
-            return
+            return False
         
     def first_camel(self) -> Camel:
         camels_in_order = sorted(
@@ -192,6 +208,11 @@ class Game(BaseModel):
             reverse=False
         )
         return camels_in_order[0]
+    
+    def current_player_points(self, player_name: str) -> int:
+        player = self.players[player_name]
+        # because leg points are only distributed at the end of the leg
+        return player.points + self.current_leg.leg_points[player_name]
 
     def reset(self):
         self.players = {p: Player(name=p) for p in self.players.keys()}

@@ -1,7 +1,9 @@
+import logging
+from typing import Optional
+
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
-from typing import Optional
 
 from camelgo.domain.environment.game import Game
 from camelgo.domain.environment.game_config import GameConfig
@@ -53,7 +55,7 @@ class CamelGoEnv(gym.Env):
 
     def step(self, action_idx: int):
         if self.game.finished:
-             return self._get_obs(), 0.0, True, False, self._get_info()
+            return self._get_obs(), 0.0, True, False, self._get_info()
 
         # 1. Decode Action
         action = self._decode_action(action_idx)
@@ -66,6 +68,7 @@ class CamelGoEnv(gym.Env):
             self._apply_action(action)
         except ValueError as e:
             # Invalid move attempted (should be masked, but safety net)
+            logging.warning(f"Invalid action attempted by agent: {e}")
             return self._get_obs(), -1e6, True, False, {"error": str(e)}
         
         # 4. Simulate Opponents until it is Agent's turn again or Game Over
@@ -221,9 +224,6 @@ class CamelGoEnv(gym.Env):
         # Handle Roll Dice special case, as input Action doesn't have dice value info
         # The environment determines the dice roll result.
         
-        # Refactoring note: standard Game.play_move logic might happen here
-        # But we need to separate intent from random roll.
-        
         is_roll_act = (action.leg_bet is None and 
                        action.game_winner_bet is None and 
                        action.game_loser_bet is None and 
@@ -231,15 +231,14 @@ class CamelGoEnv(gym.Env):
                        action.booing_tile_placed is None)
         
         if is_roll_act:
-             dice = self.game.roll_dice()
-             action.dice_rolled = dice
+            dice = self.game.roll_dice()
+            action.dice_rolled = dice
              
         # Apply Action to Game
-        self.game.current_leg.play_action(action)
+        self.game.play_action(action)
         
     def _simulate_opponents(self):
-        while self.game.current_leg.next_player != self.agent_name and \
-            not self.game.leg_finished() and not self.game.finished:
+        while self.game.current_leg.next_player != self.agent_name and not self.game.finished:
             # Random Move
             valid_actions = self.get_action_mask() # Only valid
             valid_indices = np.where(valid_actions)[0]
@@ -281,25 +280,24 @@ class CamelGoEnv(gym.Env):
         # 16-47: Tiles
         # Indices: Cheer (16-31) -> pos (1-16). Boo (32-47).
         # TODO: no need for having for both cheer and boo separately.
-        # Invalid if occupied or adjacent to existing tile.
-        occupied = {pos for pos, _ in self.game.current_leg.cheering_tiles} | \
-                   {pos for pos, _ in self.game.current_leg.booing_tiles} | \
-                   {c.track_pos for c in self.game.current_leg.camel_states.values()}
-                   
+        
+        # A player can place only one tile per leg
+        tile_played_players = {p for _, p in self.game.current_leg.cheering_tiles} | \
+            {p for _, p in self.game.current_leg.booing_tiles}
+        if self.agent_name in tile_played_players:
+            mask[16:48] = [False] * 32
+        
+        # Invalid if occupied by camel or existing tile
         # Also adjacent rule: cannot place on X if X-1 or X+1 has a tile
+        camel_positions = {
+            c.track_pos for c in self.game.current_leg.camel_states.values()}
+        
+        tile_positions = {pos for pos, _ in self.game.current_leg.cheering_tiles} | \
+            {pos for pos, _ in self.game.current_leg.booing_tiles}
+                   
         for pos in range(1, 17):
-            
-            # Basic Occupied Check
-            is_invalid = (pos in occupied)
-                    
-            # Adjacency
-            if (pos-1) in occupied or (pos+1) in occupied:
-                 # Adjacency only applies to other TILES, not camels.
-                 tile_pos = {p for p, _ in self.game.current_leg.cheering_tiles} |\
-                            {p for p, _ in self.game.current_leg.booing_tiles}
-                 if (pos-1) in tile_pos or (pos+1) in tile_pos:
-                     is_invalid = True
-
+            is_invalid = (pos in camel_positions) or (pos in tile_positions) or \
+                (pos - 1 in tile_positions) or (pos + 1 in tile_positions)
             if is_invalid:
                 mask[16 + (pos-1)] = False
                 mask[32 + (pos-1)] = False

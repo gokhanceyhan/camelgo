@@ -215,3 +215,6 @@ key.pem
 !.vscode/launch.json
 !.vscode/settings.json
 !.vscode/tasks.json
+
+# Generated artifacts
+models/

@@ -74,9 +74,11 @@ class TestCamelGoEnv:
         env = CamelGoEnv()
         env.reset()
         
-        for _ in range(5):
-            action = env.action_space.sample()
+        for _ in range(100):
+            mask = env.get_action_mask().astype(np.int8)
+            action = env.action_space.sample(mask=mask)
             obs, reward, terminated, truncated, info = env.step(action)
+            # print(f"Action: {action}, Reward: {reward}, Terminated: {terminated}, Truncated: {truncated}")
             if terminated or truncated:
                 break
             assert obs.shape == (253,)

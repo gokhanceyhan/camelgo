@@ -211,6 +211,9 @@ class Game(BaseModel):
     
     def current_player_points(self, player_name: str) -> int:
         player = self.players[player_name]
+        if self.finished:
+            # legs points have already been distributed
+            return player.points
         # because leg points are only distributed at the end of the leg
         return player.points + self.current_leg.leg_points[player_name]
 

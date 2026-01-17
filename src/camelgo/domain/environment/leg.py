@@ -30,7 +30,7 @@ class Leg(BaseModel):
             })
         return self
 
-    def _move_to_next_player(self):
+    def move_to_next_player(self):
         player_names = list(self.players.keys())
         current_index = player_names.index(self.next_player) if self.next_player else 0
         self.next_player = player_names[(current_index + 1) % len(player_names)]
@@ -139,7 +139,7 @@ class Leg(BaseModel):
             self._place_tile(action.booing_tile_placed, action.player, cheering=False)
         if action.leg_bet is not None:
             self._bet_camel_wins_leg(action.leg_bet, action.player)
-        self._move_to_next_player()
+        self.move_to_next_player()
         return game_finishes
 
     def reset_leg(self) -> None:

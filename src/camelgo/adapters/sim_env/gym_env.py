@@ -51,14 +51,13 @@ class CamelGoEnv(gym.Env):
         # If it's not agent's turn, simulate until it is
         self._simulate_opponents()
         
-        return self._get_obs(), self._get_info()
+        return self._get_obs(), self._get_info(self.agent_name)
 
     def step(self, action_idx: int):
         if self.game.finished:
-            return self._get_obs(), 0.0, True, False, self._get_info()
-
+            return self._get_obs(), 0.0, True, False, self._get_info(self.agent_name)
         # 1. Decode Action
-        action = self._decode_action(action_idx)
+        action = self._decode_action(action_idx, self.agent_name)
         
         # 2. Capture state before move (for reward calc)
         prev_score = self.game.current_player_points(self.agent_name)
@@ -83,10 +82,10 @@ class CamelGoEnv(gym.Env):
         terminated = self.game.finished
         truncated = False
         
-        return self._get_obs(), reward, terminated, truncated, self._get_info()
+        return self._get_obs(), reward, terminated, truncated, self._get_info(self.agent_name)
 
     def _get_obs(self) -> np.ndarray:
-        # Construct the 261-dim vector
+        # Construct the 253-dim vector
         obs = []
         
         # 1. Camels (7 * 23 = 161)
@@ -192,9 +191,8 @@ class CamelGoEnv(gym.Env):
         
         return np.array(obs, dtype=np.float32)
 
-    def _decode_action(self, idx: int) -> Action:
-        act = Action(player=self.agent_name)
-        
+    def _decode_action(self, idx: int, player_name) -> Action:
+        act = Action(player=player_name)
         if idx == 0:
             pass # Roll Dice logic handled in _apply_action
         elif 1 <= idx <= 5:
@@ -229,7 +227,6 @@ class CamelGoEnv(gym.Env):
                        action.game_loser_bet is None and 
                        action.cheering_tile_placed is None and 
                        action.booing_tile_placed is None)
-        
         if is_roll_act:
             dice = self.game.roll_dice()
             action.dice_rolled = dice
@@ -239,18 +236,19 @@ class CamelGoEnv(gym.Env):
         
     def _simulate_opponents(self):
         while self.game.current_leg.next_player != self.agent_name and not self.game.finished:
+            next_player = self.game.current_leg.next_player
             # Random Move
-            valid_actions = self.get_action_mask() # Only valid
+            valid_actions = self.get_action_mask(next_player) # Only valid
             valid_indices = np.where(valid_actions)[0]
             if len(valid_indices) == 0:
                 # No moves? Should not happen.
                 raise ValueError("No valid actions available for a player, should not happen.")
                  
             idx = np.random.choice(valid_indices)
-            action = self._decode_action(idx)
+            action = self._decode_action(idx, next_player)
             self._apply_action(action)
                 
-    def get_action_mask(self) -> np.ndarray:
+    def get_action_mask(self, player_name) -> np.ndarray:
         # 1=Valid, 0=Invalid
         mask = np.ones(48, dtype=bool)
         
@@ -266,15 +264,15 @@ class CamelGoEnv(gym.Env):
             if count >= 4: # 5,3,2,2
                 mask[1+i] = False
                 
-        # 6-10: Game Win (One per color per player?)
+        # 6-10: Game Win (One per color per player)
         # Logic: Can usually bet once per turn. Always valid if not already bet
         for i, color in enumerate(GameConfig.CAMEL_COLORS):
-            if self.agent_name in self.game.hidden_game_winner_bets[color]:
+            if player_name in self.game.hidden_game_winner_bets[color]:
                 mask[6+i] = False
 
         # 11-15: Game Lose (Same logic as above)
         for i, color in enumerate(GameConfig.CAMEL_COLORS):
-            if self.agent_name in self.game.hidden_game_loser_bets[color]:
+            if player_name in self.game.hidden_game_loser_bets[color]:
                 mask[11+i] = False
         
         # 16-47: Tiles
@@ -284,7 +282,7 @@ class CamelGoEnv(gym.Env):
         # A player can place only one tile per leg
         tile_played_players = {p for _, p in self.game.current_leg.cheering_tiles} | \
             {p for _, p in self.game.current_leg.booing_tiles}
-        if self.agent_name in tile_played_players:
+        if player_name in tile_played_players:
             mask[16:48] = [False] * 32
         
         # Invalid if occupied by camel or existing tile
@@ -304,6 +302,5 @@ class CamelGoEnv(gym.Env):
                 
         return mask
 
-    def _get_info(self):
-        return {"action_mask": self.get_action_mask()}
-
+    def _get_info(self, player_name):
+        return {"action_mask": self.get_action_mask(player_name)}

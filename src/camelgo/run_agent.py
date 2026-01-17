@@ -1,0 +1,110 @@
+"""Script to run a trained CamelGo agent in a simulation environment and display the game progress."""
+
+import torch
+from torchrl.envs import GymWrapper, TransformedEnv, RenameTransform, Compose
+from torchrl.envs.libs.gym import default_info_dict_reader
+
+from camelgo.adapters.sim_env.gym_env import CamelGoEnv
+from camelgo.domain.environment.game_config import GameConfig
+from camelgo.domain.agents.ppo_model import create_ppo_modules
+
+def get_action_description(action_idx):
+    if action_idx == 0:
+        return "Roll Dice"
+    elif 1 <= action_idx <= 5:
+        color = GameConfig.CAMEL_COLORS[action_idx - 1]
+        return f"Leg Bet on {color}"
+    elif 6 <= action_idx <= 10:
+        color = GameConfig.CAMEL_COLORS[action_idx - 6]
+        return f"Game Winner Bet on {color}"
+    elif 11 <= action_idx <= 15:
+        color = GameConfig.CAMEL_COLORS[action_idx - 11]
+        return f"Game Loser Bet on {color}"
+    elif 16 <= action_idx <= 31:
+        pos = action_idx - 16 + 1
+        return f"Place Cheering Tile at {pos}"
+    elif 32 <= action_idx <= 47:
+        pos = action_idx - 32 + 1
+        return f"Place Booing Tile at {pos}"
+    return f"Unknown Action ({action_idx})"
+
+def make_eval_env():
+    # Create environment without step limits for full game evaluation
+    env = CamelGoEnv()
+    # Important: Use categorical action encoding for discrete actions
+    # Otherwise, TorchRL may misinterpret the action space
+    env = GymWrapper(env, categorical_action_encoding=True)
+    env.set_info_dict_reader(default_info_dict_reader(["action_mask"]))
+    env = TransformedEnv(
+        env,
+        Compose(
+            RenameTransform(in_keys=["action_mask"], out_keys=["mask"]),
+        )
+    )
+    return env
+
+def load_agent(model_path="models/actor.pt"):
+    """
+    Reconstructs the agent architecture and loads trained weights.
+    Structure must match src/camelgo/training/single_agent_ppo.py
+    """
+    # 1. Define Network Architecture
+    actor, _ = create_ppo_modules(
+        obs_dim=253, 
+        action_dim=48, 
+        hidden_dim=128
+    )
+    
+    # 2. Load Weights
+    try:
+        # Load state dictionary
+        state_dict = torch.load(model_path)
+        actor.load_state_dict(state_dict)
+        print(f"Successfully loaded model from {model_path}")
+    except FileNotFoundError:
+        print(f"Warning: Model file not found at {model_path}. Using random weights.")
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        print("Using random weights.")
+    
+    return actor
+
+def main():
+    env = make_eval_env()
+    actor = load_agent()
+    # evaluation mode
+    actor.eval()
+    
+    print("-" * 50)
+    print("Starting Game Simulation with Trained Agent")
+    print("-" * 50)
+    
+    # Run rollout
+    # max_steps ensures we don't loop forever if something is broken, 
+    # but the environment should emit 'done' when the game ends.
+    with torch.no_grad():
+        rollout_td = env.rollout(policy=actor, max_steps=1000, auto_reset=True)
+    
+    total_reward = 0
+    steps = rollout_td.shape[0]
+    
+    for i in range(steps):
+        step_td = rollout_td[i]
+        
+        action_idx = step_td["action"].item()
+        reward = step_td["next", "reward"].item()
+        action_desc = get_action_description(action_idx)
+        
+        print(f"Step {i+1:3d} | Action Index: {action_idx:2d} | Reward: {reward:6.2f} | {action_desc}")
+        
+        total_reward += reward
+    
+    print("-" * 50)
+    print(f"Game Over!")
+    print(f"Total Steps: {steps}")
+    print(f"Total Reward: {total_reward:.2f}")
+    print(f"Winner player is {env.game.winner_player()}")
+    print("-" * 50)
+
+if __name__ == "__main__":
+    main()

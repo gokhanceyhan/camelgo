@@ -1,19 +1,15 @@
 """Single-Agent PPO training script for CamelGo using TorchRL."""
 
 import torch
-from torch import nn
-from tensordict.nn import TensorDictModule
 from torchrl.envs import GymWrapper, TransformedEnv, StepCounter, ParallelEnv, Compose, RenameTransform
 from torchrl.envs.libs.gym import default_info_dict_reader
-from torchrl.modules import ActorValueOperator, MLP, OneHotCategorical, ProbabilisticActor
-from torchrl.modules.distributions import MaskedCategorical
 from torchrl.collectors import SyncDataCollector
 from torchrl.data import ReplayBuffer, LazyMemmapStorage
 from torchrl.objectives import ClipPPOLoss
 from torchrl.objectives.value import GAE
-from torchrl.record.loggers import get_logger
 
 from camelgo.adapters.sim_env.gym_env import CamelGoEnv
+from camelgo.domain.agents.ppo_model import create_ppo_modules
 
 
 def make_env():
@@ -49,59 +45,12 @@ def train(
         env = make_env()
         
     # 2. Define Network
-    # Observation: 253, Action: 48
-    # Shared or separate Actor/Critic? Shared trunk common in PPO.
-    
-    # Simple MLP
-    common_mlp = MLP(in_features=253, out_features=128, depth=2, activation_class=nn.Tanh)
-    
-    # Actor Head
-    actor_head = MLP(in_features=128, out_features=48, depth=1)
-    # We need a probabilistic distribution wrapper
-    # OneHotCategorical or Categorical. 
-    # Use SafeProbabilisticModule or just raw distribution output if manual.
-    # TorchRL simplifies this with ActorValueOperator if provided a common module.
-    
-    # Let's use explicit modules for clarity
-    actor_net = nn.Sequential(
-        common_mlp,
-        actor_head,
-        # We need to ensure output maps to distribution parameters (logits)
+    actor, value_operator = create_ppo_modules(
+        obs_dim=253, 
+        action_dim=48, 
+        hidden_dim=128, 
+        device=device
     )
-    
-    # Value Head
-    value_head = MLP(in_features=128, out_features=1, depth=1)
-    critic_net = nn.Sequential(
-        common_mlp, # Note: this shares weights in Python logic only if passed identically. 
-                    # Actually standard MLP creates new weights. 
-                    # To share weights, we need a separate module class.
-        value_head
-    )
-    
-    # Move to device
-    actor_net.to(device)
-    critic_net.to(device)
-
-    # Wrap in TensorDictModules
-    actor_module = TensorDictModule(
-        actor_net, in_keys=["observation"], out_keys=["logits"]
-    )
-    critic_module = TensorDictModule(
-        critic_net, in_keys=["observation"], out_keys=["state_value"]
-    )
-    
-    # Actor requires distribution
-    
-    actor = ProbabilisticActor(
-        module=actor_module,
-        in_keys=["logits", "mask"],
-        out_keys=["action"],
-        distribution_class=MaskedCategorical,
-        return_log_prob=True,
-    )
-    
-    # Value operator
-    value_operator = critic_module
 
     # 3. Collector
     collector = SyncDataCollector(

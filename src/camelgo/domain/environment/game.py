@@ -184,13 +184,18 @@ class Game(BaseModel):
         if action.leg_bet is not None:
             self.current_leg.play_action(action)
             return False
+        # The following two actions are hidden from other players
+        # These actions do not use the play_action method of Leg, 
+        # hence moving the next player is handled here.
         # Action 4: Player places game winner bet
         if action.game_winner_bet is not None:
             self.hidden_game_winner_bets[action.game_winner_bet].append(action.player)
+            self.current_leg.move_to_next_player()
             return False
         # Action 5: Player places game loser bet
         if action.game_loser_bet is not None:
             self.hidden_game_loser_bets[action.game_loser_bet].append(action.player)
+            self.current_leg.move_to_next_player()
             return False
         
     def first_camel(self) -> Camel:
@@ -216,6 +221,11 @@ class Game(BaseModel):
             return player.points
         # because leg points are only distributed at the end of the leg
         return player.points + self.current_leg.leg_points[player_name]
+    
+    def winner_player(self) -> Optional[Player]:
+        if not self.finished:
+            return None
+        return max(self.players.values(), key=lambda p: p.points)
 
     def reset(self):
         self.players = {p: Player(name=p) for p in self.players.keys()}

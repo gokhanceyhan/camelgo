@@ -1,3 +1,5 @@
+"""Implementation of the CamelGo environment using OpenAI Gymnasium."""
+
 import logging
 from typing import Optional
 
@@ -14,6 +16,9 @@ from camelgo.domain.environment.dice import DiceRoller
 class CamelGoEnv(gym.Env):
     metadata = {"render_modes": ["ansi"]}
 
+    ACTION_DIM = 48
+    OBSERVATION_DIM = 253
+
     def __init__(self, opponent_type="random"):
         super().__init__()
         
@@ -24,10 +29,10 @@ class CamelGoEnv(gym.Env):
         # 11-15: Place Game Loser Bet (Blue, Yellow, Green, Purple, Red)
         # 16-31: Place Cheering Tile (Pos 1-16)
         # 32-47: Place Booing Tile (Pos 1-16)
-        self.action_space = spaces.Discrete(48)
+        self.action_space = spaces.Discrete(CamelGoEnv.ACTION_DIM)
         
         # Observation Space (flattened vector of size 253)
-        self.observation_space = spaces.Box(low=0, high=1, shape=(253,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=1, shape=(CamelGoEnv.OBSERVATION_DIM,), dtype=np.float32)
         
         self.agent_name = "Agent"
         self.opponent_name = "Opponent"
@@ -250,7 +255,7 @@ class CamelGoEnv(gym.Env):
                 
     def get_action_mask(self, player_name) -> np.ndarray:
         # 1=Valid, 0=Invalid
-        mask = np.ones(48, dtype=bool)
+        mask = np.ones(CamelGoEnv.ACTION_DIM, dtype=bool)
         
         # 0: Roll Dice (Valid unless leg ended, but step handles that. Always valid if turn exists)
         
@@ -303,4 +308,4 @@ class CamelGoEnv(gym.Env):
         return mask
 
     def _get_info(self, player_name):
-        return {"action_mask": self.get_action_mask(player_name)}
+        return {"mask": self.get_action_mask(player_name)}

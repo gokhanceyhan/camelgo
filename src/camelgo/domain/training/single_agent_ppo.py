@@ -1,29 +1,88 @@
 """Single-Agent PPO training script for CamelGo using TorchRL."""
 
+from tensordict.nn import TensorDictModule
 import torch
-from torchrl.envs import GymWrapper, TransformedEnv, StepCounter, ParallelEnv, Compose, RenameTransform
+from torchrl.envs import GymWrapper, ParallelEnv
 from torchrl.envs.libs.gym import default_info_dict_reader
 from torchrl.collectors import SyncDataCollector
 from torchrl.data import ReplayBuffer, LazyMemmapStorage
+from torchrl.modules import MLP, ProbabilisticActor
+from torchrl.modules.distributions import MaskedCategorical
 from torchrl.objectives import ClipPPOLoss
 from torchrl.objectives.value import GAE
 
-from camelgo.adapters.sim_env.gym_env import CamelGoEnv
-from camelgo.domain.agents.ppo_model import create_ppo_modules
+from camelgo.domain.environment.gym_env import CamelGoEnv
 
 
 def make_env():
     env = CamelGoEnv()
-    env = GymWrapper(env) # Converts to TorchRL Env
-    env.set_info_dict_reader(default_info_dict_reader(["action_mask"]))
-    env = TransformedEnv(
-        env,
-        Compose(
-            StepCounter(max_steps=100), # Limit leg/game steps to avoid infinite loops
-            RenameTransform(in_keys=["action_mask"], out_keys=["mask"]),
-        )
-    )
+    # Converts to TorchRL Env
+    # Important: Use categorical action encoding for discrete actions
+    # Otherwise, TorchRL may misinterpret the action space
+    env = GymWrapper(env, categorical_action_encoding=True)
+    env.set_info_dict_reader(default_info_dict_reader(["mask"]))
     return env
+
+
+def create_ppo_modules(
+        obs_dim=CamelGoEnv.OBSERVATION_DIM, 
+        action_dim=CamelGoEnv.ACTION_DIM, 
+        hidden_dim=128, 
+        device="cpu"
+    ):
+    """
+    Creates the Actor and Value modules for PPO.
+    
+    Args:
+        obs_dim (int): Observation space dimension.
+        action_dim (int): Action space dimension.
+        hidden_dim (int): Hidden layer dimension.
+        device (str or torch.device): Device to put modules on.
+        
+    Returns:
+        actor (ProbabilisticActor): The actor module.
+        value_operator (TensorDictModule): The critic module.
+    """
+    
+    # Actor Network
+    actor_net = MLP(
+        in_features=obs_dim,
+        out_features=action_dim,
+        num_cells=[hidden_dim, hidden_dim],
+        activation_class=torch.nn.Tanh,
+    )
+    
+    # Critic Network
+    critic_net = MLP(
+        in_features=obs_dim,
+        out_features=1,
+        num_cells=[hidden_dim, hidden_dim],
+        activation_class=torch.nn.Tanh,
+    )
+    
+    # Move to device
+    actor_net.to(device)
+    critic_net.to(device)
+
+    # Wrap in TensorDictModules
+    actor_module = TensorDictModule(
+        actor_net, in_keys=["observation"], out_keys=["logits"]
+    )
+    
+    critic_module = TensorDictModule(
+        critic_net, in_keys=["observation"], out_keys=["state_value"]
+    )
+    
+    # Actor requires distribution
+    actor = ProbabilisticActor(
+        module=actor_module,
+        in_keys=["logits", "mask"],
+        out_keys=["action"],
+        distribution_class=MaskedCategorical,
+        return_log_prob=True,
+    )
+    
+    return actor, critic_module
 
 
 def train(
@@ -46,8 +105,8 @@ def train(
         
     # 2. Define Network
     actor, value_operator = create_ppo_modules(
-        obs_dim=253, 
-        action_dim=48, 
+        obs_dim=CamelGoEnv.OBSERVATION_DIM, 
+        action_dim=CamelGoEnv.ACTION_DIM, 
         hidden_dim=128, 
         device=device
     )
@@ -105,19 +164,19 @@ def train(
         # Train Loop (Epochs)
         for _ in range(num_epochs):
              for _ in range(frames_per_batch // (frames_per_batch // num_epochs)):
-                 subdata = replay_buffer.sample()
-                 loss_vals = loss_module(subdata.to(device))
-                 
-                 loss_value = (
-                     loss_vals["loss_objective"]
-                     + loss_vals["loss_critic"]
-                     + loss_vals["loss_entropy"]
-                 )
-                 
-                 optim.zero_grad()
-                 loss_value.backward()
-                 torch.nn.utils.clip_grad_norm_(loss_module.parameters(), 1.0)
-                 optim.step()
+                subdata = replay_buffer.sample()
+                loss_vals = loss_module(subdata.to(device))
+                
+                loss_value = (
+                    loss_vals["loss_objective"]
+                    + loss_vals["loss_critic"]
+                    + loss_vals["loss_entropy"]
+                )
+                
+                optim.zero_grad()
+                loss_value.backward()
+                torch.nn.utils.clip_grad_norm_(loss_module.parameters(), 1.0)
+                optim.step()
                  
         scheduler.step()
         

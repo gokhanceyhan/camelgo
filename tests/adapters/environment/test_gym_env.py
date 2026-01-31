@@ -1,14 +1,14 @@
 import numpy as np
 
-from camelgo.adapters.sim_env.gym_env import CamelGoEnv
+from camelgo.domain.environment.gym_env import CamelGoEnv
 from camelgo.domain.environment.game_config import GameConfig
 
 
 class TestCamelGoEnv:
     def test_initialization(self):
         env = CamelGoEnv()
-        assert env.observation_space.shape == (253,)
-        assert env.action_space.n == 48
+        assert env.observation_space.shape == (CamelGoEnv.OBSERVATION_DIM,)
+        assert env.action_space.n == CamelGoEnv.ACTION_DIM
         # Should be None before reset
         assert env.game is None
 
@@ -18,7 +18,7 @@ class TestCamelGoEnv:
         
         # Check observation shape and type
         assert isinstance(obs, np.ndarray)
-        assert obs.shape == (253,)
+        assert obs.shape == (CamelGoEnv.OBSERVATION_DIM,)
         assert obs.dtype == np.float32
         
         # Check if game is initialized
@@ -81,5 +81,5 @@ class TestCamelGoEnv:
             print(f"Action: {action}, Reward: {reward}, Terminated: {terminated}, Truncated: {truncated}")
             if terminated or truncated:
                 break
-            assert obs.shape == (253,)
+            assert obs.shape == (CamelGoEnv.OBSERVATION_DIM,)
 

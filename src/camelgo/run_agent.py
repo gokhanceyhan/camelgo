@@ -1,12 +1,11 @@
 """Script to run a trained CamelGo agent in a simulation environment and display the game progress."""
 
 import torch
-from torchrl.envs import GymWrapper, TransformedEnv, RenameTransform, Compose
-from torchrl.envs.libs.gym import default_info_dict_reader
 
-from camelgo.adapters.sim_env.gym_env import CamelGoEnv
 from camelgo.domain.environment.game_config import GameConfig
-from camelgo.domain.agents.ppo_model import create_ppo_modules
+from camelgo.domain.environment.gym_env import CamelGoEnv
+from camelgo.domain.training.single_agent_ppo import create_ppo_modules, make_env
+
 
 def get_action_description(action_idx):
     if action_idx == 0:
@@ -28,20 +27,6 @@ def get_action_description(action_idx):
         return f"Place Booing Tile at {pos}"
     return f"Unknown Action ({action_idx})"
 
-def make_eval_env():
-    # Create environment without step limits for full game evaluation
-    env = CamelGoEnv()
-    # Important: Use categorical action encoding for discrete actions
-    # Otherwise, TorchRL may misinterpret the action space
-    env = GymWrapper(env, categorical_action_encoding=True)
-    env.set_info_dict_reader(default_info_dict_reader(["action_mask"]))
-    env = TransformedEnv(
-        env,
-        Compose(
-            RenameTransform(in_keys=["action_mask"], out_keys=["mask"]),
-        )
-    )
-    return env
 
 def load_agent(model_path="models/actor.pt"):
     """
@@ -50,8 +35,8 @@ def load_agent(model_path="models/actor.pt"):
     """
     # 1. Define Network Architecture
     actor, _ = create_ppo_modules(
-        obs_dim=253, 
-        action_dim=48, 
+        obs_dim=CamelGoEnv.OBSERVATION_DIM, 
+        action_dim=CamelGoEnv.ACTION_DIM, 
         hidden_dim=128
     )
     
@@ -69,8 +54,9 @@ def load_agent(model_path="models/actor.pt"):
     
     return actor
 
+
 def main():
-    env = make_eval_env()
+    env = make_env()
     actor = load_agent()
     # evaluation mode
     actor.eval()
@@ -105,6 +91,7 @@ def main():
     print(f"Total Reward: {total_reward:.2f}")
     print(f"Winner player is {env.game.winner_player()}")
     print("-" * 50)
+
 
 if __name__ == "__main__":
     main()

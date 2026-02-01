@@ -1,3 +1,17 @@
+"""Implements the GameConfig class containing game configuration constants."""
+
+from enum import Enum
+
+
+class Color(str, Enum):
+    BLUE = 'blue'
+    YELLOW = 'yellow'
+    GREEN = 'green'
+    PURPLE = 'purple'
+    RED = 'red'
+    WHITE = 'white'
+    BLACK = 'black'
+    GREY = 'grey'
 
 
 class GameConfig:
@@ -5,8 +19,8 @@ class GameConfig:
     NUM_CAMELS = 7  # Total number of camels in the game
     NUM_NORMAL_CAMELS = 5  # Number of normal camels
     NUM_CRAZY_CAMELS = 2  # Number of crazy camels
-    CAMEL_COLORS = ['blue', 'yellow', 'green', 'purple', 'red']  # Standard camel colors
-    CRAZY_CAMELS = ['white', 'black']  # Camels that move backwards
+    CAMEL_COLORS = [Color.BLUE, Color.YELLOW, Color.GREEN, Color.PURPLE, Color.RED]  # Standard camel colors
+    CRAZY_CAMELS = [Color.WHITE, Color.BLACK]  # Camels that move backwards
     ALL_CAMEL_COLORS = CAMEL_COLORS + CRAZY_CAMELS
     DICE_VALUES = [1, 2, 3]  # Possible dice roll values
     BET_VALUES = [5, 3, 2, 2]  # Bet values for first to third place and subsequent bets

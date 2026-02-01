@@ -23,12 +23,6 @@ class CamelGoEnv(gym.Env):
         super().__init__()
         
         # Action Space
-        # 0: Roll Dice
-        # 1-5: Place Leg Bet (Blue, Yellow, Green, Purple, Red)
-        # 6-10: Place Game Winner Bet (Blue, Yellow, Green, Purple, Red)
-        # 11-15: Place Game Loser Bet (Blue, Yellow, Green, Purple, Red)
-        # 16-31: Place Cheering Tile (Pos 1-16)
-        # 32-47: Place Booing Tile (Pos 1-16)
         self.action_space = spaces.Discrete(CamelGoEnv.ACTION_DIM)
         
         # Observation Space (flattened vector of size 253)
@@ -62,7 +56,7 @@ class CamelGoEnv(gym.Env):
         if self.game.finished:
             return self._get_obs(), 0.0, True, False, self._get_info(self.agent_name)
         # 1. Decode Action
-        action = self._decode_action(action_idx, self.agent_name)
+        action = Action.from_int(action_idx, self.agent_name)
         
         # 2. Capture state before move (for reward calc)
         prev_score = self.game.current_player_points(self.agent_name)
@@ -196,33 +190,6 @@ class CamelGoEnv(gym.Env):
         
         return np.array(obs, dtype=np.float32)
 
-    def _decode_action(self, idx: int, player_name) -> Action:
-        act = Action(player=player_name)
-        if idx == 0:
-            pass # Roll Dice logic handled in _apply_action
-        elif 1 <= idx <= 5:
-            # Leg Bet
-            color = GameConfig.CAMEL_COLORS[idx-1]
-            act.leg_bet = color
-        elif 6 <= idx <= 10:
-            # Game Win
-            color = GameConfig.CAMEL_COLORS[idx-6]
-            act.game_winner_bet = color
-        elif 11 <= idx <= 15:
-            # Game Lose
-            color = GameConfig.CAMEL_COLORS[idx-11]
-            act.game_loser_bet = color
-        elif 16 <= idx <= 31: 
-            # Place Cheer
-            pos = idx - 16 + 1
-            act.cheering_tile_placed = pos
-        elif 32 <= idx <= 47:
-            # Place Boo
-            pos = idx - 32 + 1
-            act.booing_tile_placed = pos
-            
-        return act
-
     def _apply_action(self, action: Action):
         # Handle Roll Dice special case, as input Action doesn't have dice value info
         # The environment determines the dice roll result.
@@ -250,7 +217,7 @@ class CamelGoEnv(gym.Env):
                 raise ValueError("No valid actions available for a player, should not happen.")
                  
             idx = np.random.choice(valid_indices)
-            action = self._decode_action(idx, next_player)
+            action = Action.from_int(idx, next_player)
             self._apply_action(action)
                 
     def get_action_mask(self, player_name) -> np.ndarray:

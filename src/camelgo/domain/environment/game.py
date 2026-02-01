@@ -2,9 +2,9 @@ from collections import defaultdict
 from pydantic import BaseModel, model_validator
 from typing import Dict, Optional, List, OrderedDict
 
-from camelgo.domain.environment.action import Action
+from camelgo.domain.environment.action import Action, ActionInt
 from camelgo.domain.environment.camel import Camel
-from camelgo.domain.environment.game_config import GameConfig
+from camelgo.domain.environment.game_config import GameConfig, Color
 from camelgo.domain.environment.leg import Leg
 from camelgo.domain.environment.player import Player
 from camelgo.domain.environment.dice import DiceRoller, Dice
@@ -22,8 +22,8 @@ class Game(BaseModel):
     finished: bool = False
 
     # the following two states are hidden
-    hidden_game_winner_bets: Dict[str, List[str]] = defaultdict(list)  # camel color -> list of player names (first player bets first) who bet on it to win
-    hidden_game_loser_bets: Dict[str, List[str]] = defaultdict(list)   # camel color -> list of player names (first player bets first) who bet on it to lose
+    hidden_game_winner_bets: Dict[Color, List[str]] = defaultdict(list)  # camel color -> list of player names (first player bets first) who bet on it to win
+    hidden_game_loser_bets: Dict[Color, List[str]] = defaultdict(list)   # camel color -> list of player names (first player bets first) who bet on it to lose
 
     @model_validator(mode="after")
     def ensure_defaultdicts(self):
@@ -93,12 +93,12 @@ class Game(BaseModel):
             dice_roller.roll_dice()
         dices_rolled = dice_roller.dices_rolled[:]
         # find first grey dice color
-        first_grey_dice = next(d for d in dice_roller.dices_rolled if d.color == 'white' or d.color == 'black')
+        first_grey_dice = next(d for d in dice_roller.dices_rolled if d.color == Color.WHITE or d.color == Color.BLACK)
         second_grey_dice = dice_roller.roll_grey_dice()
-        if first_grey_dice.color == 'white':
-            second_grey_dice = Dice(base_color='grey', number=second_grey_dice.number, number_color='black')
+        if first_grey_dice.color == Color.WHITE:
+            second_grey_dice = Dice(base_color=Color.GREY, number=second_grey_dice.number, number_color=Color.BLACK)
         else:
-            second_grey_dice = Dice(base_color='grey', number=second_grey_dice.number, number_color='white')
+            second_grey_dice = Dice(base_color=Color.GREY, number=second_grey_dice.number, number_color=Color.WHITE)
         dices_rolled.append(second_grey_dice)
         dice_roller.reset()
 
@@ -228,6 +228,7 @@ class Game(BaseModel):
         return max(self.players.values(), key=lambda p: p.points)
 
     def reset(self):
+        self.dice_roller.reset()
         self.players = {p: Player(name=p) for p in self.players.keys()}
         self.legs_played = 0
         self.current_leg = Leg(
@@ -238,3 +239,4 @@ class Game(BaseModel):
         self.next_leg_starting_player = 0
         self.hidden_game_winner_bets = defaultdict(list)
         self.hidden_game_loser_bets = defaultdict(list)
+

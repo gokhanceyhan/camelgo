@@ -1,10 +1,10 @@
 from pydantic import BaseModel, field_validator, model_validator
 from typing import List, Optional
 
-from camelgo.domain.environment.game_config import GameConfig
+from camelgo.domain.environment.game_config import GameConfig, Color
 
 class Camel(BaseModel):
-    color: str  # Unique identifier for the camel (e.g., 'blue', 'yellow')
+    color: Color  # Unique identifier for the camel (e.g., 'blue', 'yellow')
     track_pos: int  # Current position on the board (tile index, 1-16)
     stack_pos: int  # Stack order (0 = bottom, higher = on top)
 

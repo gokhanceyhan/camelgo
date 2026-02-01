@@ -2,30 +2,16 @@
 
 import torch
 
+from camelgo.domain.environment.action import ActionInt
 from camelgo.domain.environment.game_config import GameConfig
 from camelgo.domain.environment.gym_env import CamelGoEnv
 from camelgo.domain.training.single_agent_ppo import create_ppo_modules, make_env
 
 
 def get_action_description(action_idx):
-    if action_idx == 0:
-        return "Roll Dice"
-    elif 1 <= action_idx <= 5:
-        color = GameConfig.CAMEL_COLORS[action_idx - 1]
-        return f"Leg Bet on {color}"
-    elif 6 <= action_idx <= 10:
-        color = GameConfig.CAMEL_COLORS[action_idx - 6]
-        return f"Game Winner Bet on {color}"
-    elif 11 <= action_idx <= 15:
-        color = GameConfig.CAMEL_COLORS[action_idx - 11]
-        return f"Game Loser Bet on {color}"
-    elif 16 <= action_idx <= 31:
-        pos = action_idx - 16 + 1
-        return f"Place Cheering Tile at {pos}"
-    elif 32 <= action_idx <= 47:
-        pos = action_idx - 32 + 1
-        return f"Place Booing Tile at {pos}"
-    return f"Unknown Action ({action_idx})"
+    """Convert action index to human-readable description."""
+    action_num = ActionInt(action_idx)
+    return action_num.name.replace("_", " ").title()
 
 
 def load_agent(model_path="models/actor.pt"):

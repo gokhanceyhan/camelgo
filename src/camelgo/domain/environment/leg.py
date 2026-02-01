@@ -5,19 +5,20 @@ from typing import Dict, List, Optional, OrderedDict, Tuple, Any
 from camelgo.domain.environment.action import Action
 from camelgo.domain.environment.camel import Camel
 from camelgo.domain.environment.dice import Dice
-from camelgo.domain.environment.game_config import GameConfig
+from camelgo.domain.environment.game_config import GameConfig, Color
 from camelgo.domain.environment.player import Player
+
 
 class Leg(BaseModel):
     leg_number: int = 1  # Which leg of the game (1, 2, ...)
     players: OrderedDict[str, Player]  # Map of player names to player states
-    camel_states: Dict[str, Camel]
+    camel_states: Dict[Color, Camel]
 
     # reset the following at the start of each leg
     cheering_tiles: List[Tuple[int, str]] = Field(default_factory=list)  # Position and players of the cheering tiles, if placed
     booing_tiles: List[Tuple[int, str]] = Field(default_factory=list)  # Position and players of the booing tiles, if placed
     leg_points: Dict[str, int] = Field(default_factory=lambda: defaultdict(int))  # player -> points earned in this leg from dice rolls and tiles
-    player_bets: Dict[str, Dict[str, List[int]]] = Field(default_factory=lambda: defaultdict(lambda: defaultdict(list)))  # player -> color -> bets to win the leg
+    player_bets: Dict[str, Dict[Color, List[int]]] = Field(default_factory=lambda: defaultdict(lambda: defaultdict(list)))  # player -> color -> bets to win the leg
     next_player: Optional[str] = None  # Player whose turn it is to play the next action
 
     @model_validator(mode="after")

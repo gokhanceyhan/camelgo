@@ -1,10 +1,10 @@
 import pytest
 from camelgo.domain.environment.dice import Dice, DiceRoller
-from camelgo.domain.environment.game_config import GameConfig
+from camelgo.domain.environment.game_config import GameConfig, Color
 
 def test_dice_model():
-    dice = Dice(base_color="yellow", number=3)
-    assert dice.color == "yellow"
+    dice = Dice(base_color=Color.YELLOW, number=3)
+    assert dice.color == Color.YELLOW
     assert dice.number == 3
 
 

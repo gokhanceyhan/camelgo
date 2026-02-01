@@ -12,6 +12,7 @@ from dash import html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 
 from camelgo.domain.environment.action import Action
+from camelgo.domain.environment.game_config import Color
 from camelgo.domain.environment.dice import Dice, DiceRoller
 from camelgo.domain.environment.game import Game
 
@@ -261,11 +262,11 @@ def unified_callback(start_n,
         if tile_type == "booing" and tile_pos:
             action_kwargs["booing_tile_placed"] = int(tile_pos)
         if leg_bet:
-            action_kwargs["leg_bet"] = leg_bet
+            action_kwargs["leg_bet"] = Color(leg_bet)
         if winner_bet:
-            action_kwargs["game_winner_bet"] = winner_bet
+            action_kwargs["game_winner_bet"] = Color(winner_bet)
         if loser_bet:
-            action_kwargs["game_loser_bet"] = loser_bet
+            action_kwargs["game_loser_bet"] = Color(loser_bet)
         action = Action(**action_kwargs)
 
         try:

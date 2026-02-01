@@ -5,7 +5,7 @@ from camelgo.domain.environment.action import Action
 from camelgo.domain.environment.leg import Leg
 from camelgo.domain.environment.camel import Camel
 from camelgo.domain.environment.dice import Dice
-from camelgo.domain.environment.game_config import GameConfig
+from camelgo.domain.environment.game_config import GameConfig, Color
 from camelgo.domain.environment.player import Player
 
 
@@ -218,17 +218,17 @@ def test_place_booing_tile(players):
 
 def test_bet_camel_wins_leg(players):
     camels = {
-        "blue": Camel(color="blue", track_pos=1, stack_pos=0),
-        "green": Camel(color="green", track_pos=3, stack_pos=0)
+        Color.BLUE: Camel(color=Color.BLUE, track_pos=1, stack_pos=0),
+        Color.GREEN: Camel(color=Color.GREEN, track_pos=3, stack_pos=0)
     }
     leg = Leg(leg_number=1, camel_states=camels, players=players)
     player = "Alice"
-    action = Action(leg_bet="blue", player=player)
+    action = Action(leg_bet=Color.BLUE, player=player)
     leg.play_action(action)
-    assert leg.player_bets[player]["blue"]
+    assert leg.player_bets[player][Color.BLUE]
     # Should raise if betting on a non-existent camel
     with pytest.raises(ValueError):
-        leg.play_action(Action(leg_bet="red", player=player))
+        leg.play_action(Action(leg_bet=Color.RED, player=player))
 
 def test_reset_leg(players):
     camels = {

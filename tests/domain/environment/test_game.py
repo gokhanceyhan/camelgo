@@ -6,7 +6,7 @@ from camelgo.domain.environment.player import Player
 from camelgo.domain.environment.leg import Leg
 from camelgo.domain.environment.camel import Camel
 from camelgo.domain.environment.dice import DiceRoller, Dice
-from camelgo.domain.environment.game_config import GameConfig
+from camelgo.domain.environment.game_config import GameConfig, Color
 
 
 @pytest.fixture
@@ -36,13 +36,13 @@ def game_about_to_end(players, dice_roller):
     """Fixture for a Game instance where the game is about to end (one camel near finish)."""
     # Place one camel at the last tile, others far behind
     camels = {
-        "red": Camel(color="red", track_pos=GameConfig.BOARD_SIZE, stack_pos=0),
-        "blue": Camel(color="blue", track_pos=1, stack_pos=0),
-        "green": Camel(color="green", track_pos=2, stack_pos=0),
-        "yellow": Camel(color="yellow", track_pos=3, stack_pos=0),
-        "purple": Camel(color="purple", track_pos=1, stack_pos=1),
-        "white": Camel(color="white", track_pos=10, stack_pos=0),
-        "black": Camel(color="black", track_pos=11, stack_pos=0),
+        Color.RED: Camel(color=Color.RED, track_pos=GameConfig.BOARD_SIZE, stack_pos=0),
+        Color.BLUE: Camel(color=Color.BLUE, track_pos=1, stack_pos=0),
+        Color.GREEN: Camel(color=Color.GREEN, track_pos=2, stack_pos=0),
+        Color.YELLOW: Camel(color=Color.YELLOW, track_pos=3, stack_pos=0),
+        Color.PURPLE: Camel(color=Color.PURPLE, track_pos=1, stack_pos=1),
+        Color.WHITE: Camel(color=Color.WHITE, track_pos=10, stack_pos=0),
+        Color.BLACK: Camel(color=Color.BLACK, track_pos=11, stack_pos=0),
     }
     leg = Leg(
         leg_number=10, 
@@ -53,8 +53,8 @@ def game_about_to_end(players, dice_roller):
             "Bob": 3
         }, 
         player_bets={
-            "Alice": {"red": [5, 3], "yellow": [5]}, # Alice will get 9 points from the leg if the camel order holds
-            "Bob": {"green": [5], "yellow": [3]} # Bob will get 0 points from the leg if the camel order holds
+            "Alice": {Color.RED: [5, 3], Color.YELLOW: [5]}, # Alice will get 9 points from the leg if the camel order holds
+            "Bob": {Color.GREEN: [5], Color.YELLOW: [3]} # Bob will get 0 points from the leg if the camel order holds
         }
     )
     return Game(
@@ -65,18 +65,18 @@ def game_about_to_end(players, dice_roller):
         finished=False,
         next_leg_starting_player='Bob', 
         hidden_game_winner_bets={
-            'red': ['Alice'],
-            'blue': ['Bob']
+            Color.RED: ['Alice'],
+            Color.BLUE: ['Bob']
         }, 
         hidden_game_loser_bets={
-            'green': ['Bob'],
-            'yellow': ['Alice']
+            Color.GREEN: ['Bob'],
+            Color.YELLOW: ['Alice']
         }
     )
 
 @pytest.fixture
 def action_alice_roll_red_3():
-    return Action(player="Alice", dice_rolled=Dice(base_color="red", number=3))
+    return Action(player="Alice", dice_rolled=Dice(base_color=Color.RED, number=3))
 
 def test_start_game(dice_roller):
     player_names = ["Alice", "Bob"]
@@ -84,10 +84,10 @@ def test_start_game(dice_roller):
     assert game is not None
     assert game.players.keys() == {"Alice", "Bob"}
     assert len(game.current_leg.camel_states) == 7
-    assert game.current_leg.camel_states["blue"].track_pos == 2
-    assert game.current_leg.camel_states["blue"].stack_pos == 1
-    assert game.first_camel().color == "green"
-    assert game.last_camel().color == "purple"
+    assert game.current_leg.camel_states[Color.BLUE].track_pos == 2
+    assert game.current_leg.camel_states[Color.BLUE].stack_pos == 1
+    assert game.first_camel().color == Color.GREEN
+    assert game.last_camel().color == Color.PURPLE
 
 def test_player_dice_roll_action(game_new_start, action_alice_roll_red_3):
     # given
@@ -99,8 +99,8 @@ def test_player_dice_roll_action(game_new_start, action_alice_roll_red_3):
 
     # then
     assert game.current_leg.leg_points["Alice"] == 1
-    assert game.current_leg.camel_states["red"].track_pos == 4
-    assert game.current_leg.camel_states["red"].stack_pos == 0
+    assert game.current_leg.camel_states[Color.RED].track_pos == 4
+    assert game.current_leg.camel_states[Color.RED].stack_pos == 0
 
 def test_game_about_to_end(game_about_to_end, action_alice_roll_red_3):
     # given
@@ -114,10 +114,10 @@ def test_game_about_to_end(game_about_to_end, action_alice_roll_red_3):
     assert game.finished is True
     assert game.legs_played == 11
     assert game.current_leg.leg_points["Alice"] == 6
-    assert game.current_leg.camel_states["red"].track_pos > GameConfig.BOARD_SIZE  # red camel should have finished
-    assert game.current_leg.camel_states["red"].finished is True
-    assert game.first_camel().color == "red"
-    assert game.last_camel().color == "blue"
+    assert game.current_leg.camel_states[Color.RED].track_pos > GameConfig.BOARD_SIZE  # red camel should have finished
+    assert game.current_leg.camel_states[Color.RED].finished is True
+    assert game.first_camel().color == Color.RED
+    assert game.last_camel().color == Color.BLUE
     assert game.players["Alice"].points == 25 # 3 (initial) + 6 (leg points) + 9 (won by leg bets) + 7 (won by game bets)
     assert game.players["Bob"].points == 4 # 3 (initial) + 3 (leg points) + 0 (won by leg bets) + -2 (won by game bets)
 
@@ -149,7 +149,7 @@ def test_player_places_leg_bet(game_new_start):
     # given
     game = game_new_start
     player = "Alice"
-    camel_color = "red"
+    camel_color = Color.RED
     # when
     action = Action(player=player, leg_bet=camel_color)
     game.play_action(action)
@@ -161,7 +161,7 @@ def test_player_places_game_winner_bet(game_new_start):
     # given
     game = game_new_start
     player = "Bob"
-    camel_color = "green"
+    camel_color = Color.GREEN
     # when
     action = Action(player=player, game_winner_bet=camel_color)
     game.play_action(action)
@@ -172,7 +172,7 @@ def test_player_places_game_loser_bet(game_new_start):
     # given
     game = game_new_start
     player = "Alice"
-    camel_color = "purple"
+    camel_color = Color.PURPLE
     # when
     action = Action(player=player, game_loser_bet=camel_color)
     game.play_action(action)

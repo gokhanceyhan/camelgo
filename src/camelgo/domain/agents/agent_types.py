@@ -2,6 +2,7 @@
 
 from enum import Enum
 
+from camelgo.domain.agents.agent import Agent
 from src.camelgo.domain.agents.random_player import RandomPlayerAgent
 
 
@@ -16,7 +17,7 @@ class AgentFactory:
     """Factory class to create agents based on AgentType."""
 
     @staticmethod
-    def create_agent(agent_type: AgentType, **kwargs):
+    def create_agent(agent_type: AgentType, **kwargs) -> Agent:
         """Create an agent based on the specified AgentType.
 
         Args:

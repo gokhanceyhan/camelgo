@@ -1,8 +1,12 @@
-from collections import defaultdict
-from pydantic import BaseModel, model_validator
-from typing import Dict, Optional, List, OrderedDict
+"""Implements the Game state for CamelUp."""
 
-from camelgo.domain.environment.action import Action, ActionInt
+from collections import defaultdict
+from typing import ClassVar, Dict, Optional, List, OrderedDict
+
+import numpy as np
+from pydantic import BaseModel, model_validator
+
+from camelgo.domain.environment.action import Action
 from camelgo.domain.environment.camel import Camel
 from camelgo.domain.environment.game_config import GameConfig, Color
 from camelgo.domain.environment.leg import Leg
@@ -10,10 +14,13 @@ from camelgo.domain.environment.player import Player
 from camelgo.domain.environment.dice import DiceRoller, Dice
 
 class Game(BaseModel):
-    model_config = {'arbitrary_types_allowed': True}
     """
     Stores the game state of a CamelUp game.
     """
+    model_config = {'arbitrary_types_allowed': True}
+
+    NUM_ACTIONS: ClassVar[int] = 48  # Total number of possible actions
+
     dice_roller: DiceRoller
     players: OrderedDict[str, Player]  # Map of player names to player states
     next_leg_starting_player: str
@@ -239,4 +246,58 @@ class Game(BaseModel):
         self.next_leg_starting_player = 0
         self.hidden_game_winner_bets = defaultdict(list)
         self.hidden_game_loser_bets = defaultdict(list)
+
+    def get_action_mask(self, player_name) -> np.ndarray:
+        # 1=Valid, 0=Invalid
+        mask = np.ones(Game.NUM_ACTIONS, dtype=bool)
+        
+        # 0: Roll Dice (Valid unless leg ended, but step handles that. Always valid if turn exists)
+        
+        # 1-5: Leg Bets
+        # Check if tickets available for color
+        for i, color in enumerate(GameConfig.CAMEL_COLORS):
+            # Count total bets
+            count = 0 
+            for p in self.players.values():
+                count += len(self.current_leg.player_bets[p.name][color])
+            if count >= 4: # 5,3,2,2
+                mask[1+i] = False
+                
+        # 6-10: Game Win (One per color per player)
+        # Logic: Can usually bet once per turn. Always valid if not already bet
+        for i, color in enumerate(GameConfig.CAMEL_COLORS):
+            if player_name in self.hidden_game_winner_bets[color]:
+                mask[6+i] = False
+
+        # 11-15: Game Lose (Same logic as above)
+        for i, color in enumerate(GameConfig.CAMEL_COLORS):
+            if player_name in self.hidden_game_loser_bets[color]:
+                mask[11+i] = False
+        
+        # 16-47: Tiles
+        # Indices: Cheer (16-31) -> pos (1-16). Boo (32-47).
+        # TODO: no need for having for both cheer and boo separately.
+        
+        # A player can place only one tile per leg
+        tile_played_players = {p for _, p in self.current_leg.cheering_tiles} | \
+            {p for _, p in self.current_leg.booing_tiles}
+        if player_name in tile_played_players:
+            mask[16:48] = [False] * 32
+        
+        # Invalid if occupied by camel or existing tile
+        # Also adjacent rule: cannot place on X if X-1 or X+1 has a tile
+        camel_positions = {
+            c.track_pos for c in self.current_leg.camel_states.values()}
+        
+        tile_positions = {pos for pos, _ in self.current_leg.cheering_tiles} | \
+            {pos for pos, _ in self.current_leg.booing_tiles}
+                   
+        for pos in range(1, 17):
+            is_invalid = (pos in camel_positions) or (pos in tile_positions) or \
+                (pos - 1 in tile_positions) or (pos + 1 in tile_positions)
+            if is_invalid:
+                mask[16 + (pos-1)] = False
+                mask[32 + (pos-1)] = False
+                
+        return mask
 

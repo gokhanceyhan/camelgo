@@ -1,9 +1,9 @@
 """Implements the GameConfig class containing game configuration constants."""
 
-from enum import Enum
+from enum import StrEnum
 
 
-class Color(str, Enum):
+class Color(StrEnum):
     BLUE = 'blue'
     YELLOW = 'yellow'
     GREEN = 'green'
@@ -31,5 +31,5 @@ class GameConfig:
     INCORRECT_GAME_BET_PENALTY = 1  # Points lost for incorrect bets
 
     @classmethod
-    def is_camel_crazy(cls, color: str) -> bool:
+    def is_camel_crazy(cls, color: Color) -> bool:
         return color in cls.CRAZY_CAMELS

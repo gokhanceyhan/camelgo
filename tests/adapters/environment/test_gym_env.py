@@ -75,7 +75,7 @@ class TestCamelGoEnv:
         env.reset()
         
         for _ in range(100):
-            mask = env.get_action_mask(env.agent_name).astype(np.int8)
+            mask = env.game.get_action_mask(env.agent_name).astype(np.int8)
             action = env.action_space.sample(mask=mask)
             obs, reward, terminated, truncated, info = env.step(action)
             print(f"Action: {action}, Reward: {reward}, Terminated: {terminated}, Truncated: {truncated}")

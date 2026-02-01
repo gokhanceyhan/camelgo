@@ -7,6 +7,8 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 
+from camelgo.domain.agents.agent import Agent
+from camelgo.domain.agents.agent_types import AgentFactory, AgentType
 from camelgo.domain.environment.game import Game
 from camelgo.domain.environment.game_config import GameConfig
 from camelgo.domain.environment.action import Action
@@ -16,10 +18,10 @@ from camelgo.domain.environment.dice import DiceRoller
 class CamelGoEnv(gym.Env):
     metadata = {"render_modes": ["ansi"]}
 
-    ACTION_DIM = 48
+    ACTION_DIM = Game.NUM_ACTIONS
     OBSERVATION_DIM = 253
 
-    def __init__(self, opponent_type="random"):
+    def __init__(self, opponent_type=AgentType.RANDOM_PLAYER, num_opponents=1):
         super().__init__()
         
         # Action Space
@@ -29,12 +31,23 @@ class CamelGoEnv(gym.Env):
         self.observation_space = spaces.Box(low=0, high=1, shape=(CamelGoEnv.OBSERVATION_DIM,), dtype=np.float32)
         
         self.agent_name = "Agent"
-        self.opponent_name = "Opponent"
-        self.player_names = [self.agent_name, self.opponent_name]
+        self.player_names = [self.agent_name]
         
         self.game: Optional[Game] = None
-        # TODO: Not being used!
-        self.opponent_type = opponent_type
+        self._create_opponents(num_opponents, opponent_type)
+
+    def _create_opponents(self, num_opponents, opponent_type):
+        if num_opponents > GameConfig.MAX_PLAYERS - 1:
+            raise ValueError(f"Number of opponents {num_opponents} exceeds maximum allowed players {GameConfig.MAX_PLAYERS}.")
+        if num_opponents < GameConfig.MIN_PLAYERS - 1:
+            raise ValueError(f"Number of opponents {num_opponents} is less than minimum required players {GameConfig.MIN_PLAYERS}.")
+
+        opponents: dict[str, Agent] = {}
+        for i in range(num_opponents):
+            opponent_name = f"Opponent_{i+1}"
+            self.player_names.append(opponent_name)
+            opponents[opponent_name] = AgentFactory.create_agent(opponent_type, name=opponent_name)
+        self.opponents = opponents
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -209,70 +222,8 @@ class CamelGoEnv(gym.Env):
     def _simulate_opponents(self):
         while self.game.current_leg.next_player != self.agent_name and not self.game.finished:
             next_player = self.game.current_leg.next_player
-            # Random Move
-            valid_actions = self.get_action_mask(next_player) # Only valid
-            valid_indices = np.where(valid_actions)[0]
-            if len(valid_indices) == 0:
-                # No moves? Should not happen.
-                raise ValueError("No valid actions available for a player, should not happen.")
-                 
-            idx = np.random.choice(valid_indices)
-            action = Action.from_int(idx, next_player)
+            action = self.opponents[next_player].play(self.game)
             self._apply_action(action)
-                
-    def get_action_mask(self, player_name) -> np.ndarray:
-        # 1=Valid, 0=Invalid
-        mask = np.ones(CamelGoEnv.ACTION_DIM, dtype=bool)
-        
-        # 0: Roll Dice (Valid unless leg ended, but step handles that. Always valid if turn exists)
-        
-        # 1-5: Leg Bets
-        # Check if tickets available for color
-        for i, color in enumerate(GameConfig.CAMEL_COLORS):
-            # Count total bets
-            count = 0 
-            for p in self.game.players.values():
-                count += len(self.game.current_leg.player_bets[p.name][color])
-            if count >= 4: # 5,3,2,2
-                mask[1+i] = False
-                
-        # 6-10: Game Win (One per color per player)
-        # Logic: Can usually bet once per turn. Always valid if not already bet
-        for i, color in enumerate(GameConfig.CAMEL_COLORS):
-            if player_name in self.game.hidden_game_winner_bets[color]:
-                mask[6+i] = False
-
-        # 11-15: Game Lose (Same logic as above)
-        for i, color in enumerate(GameConfig.CAMEL_COLORS):
-            if player_name in self.game.hidden_game_loser_bets[color]:
-                mask[11+i] = False
-        
-        # 16-47: Tiles
-        # Indices: Cheer (16-31) -> pos (1-16). Boo (32-47).
-        # TODO: no need for having for both cheer and boo separately.
-        
-        # A player can place only one tile per leg
-        tile_played_players = {p for _, p in self.game.current_leg.cheering_tiles} | \
-            {p for _, p in self.game.current_leg.booing_tiles}
-        if player_name in tile_played_players:
-            mask[16:48] = [False] * 32
-        
-        # Invalid if occupied by camel or existing tile
-        # Also adjacent rule: cannot place on X if X-1 or X+1 has a tile
-        camel_positions = {
-            c.track_pos for c in self.game.current_leg.camel_states.values()}
-        
-        tile_positions = {pos for pos, _ in self.game.current_leg.cheering_tiles} | \
-            {pos for pos, _ in self.game.current_leg.booing_tiles}
-                   
-        for pos in range(1, 17):
-            is_invalid = (pos in camel_positions) or (pos in tile_positions) or \
-                (pos - 1 in tile_positions) or (pos + 1 in tile_positions)
-            if is_invalid:
-                mask[16 + (pos-1)] = False
-                mask[32 + (pos-1)] = False
-                
-        return mask
 
     def _get_info(self, player_name):
-        return {"mask": self.get_action_mask(player_name)}
+        return {"mask": self.game.get_action_mask(player_name)}
